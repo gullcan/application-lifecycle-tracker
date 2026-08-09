@@ -1,5 +1,8 @@
 from uuid import UUID
-from application_tracker.domain.models import Application
+from application_tracker.domain.models import (
+    Application,
+    ApplicationStatus,
+)
 
 class ApplicationNotFoundError(LookupError):
     """Raised when an application cannot be found."""
@@ -26,6 +29,21 @@ class InMemoryApplicationRepository:
                 f"application with id'{application_id}' was not found"
             ) from None
                 
+    def list_all(self) -> list[Application]:
+        return list(self._applications.values())
 
+    def find_by_status(
+            self,
+            status: ApplicationStatus,
+    ) -> list[Application]:
+        if not isinstance(status, ApplicationStatus):
+            raise TypeError(
+                "status must be an ApplicationStatus"
+            )
+        return [
+            application
+            for application in self._applications.values()
+            if application.status is status
+        ]
 
                 
