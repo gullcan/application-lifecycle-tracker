@@ -185,3 +185,17 @@ def test_failed_status_change_is_not_recorded() -> None:
         application.change_status(ApplicationStatus.INTERVIEW)
 
     assert application.status_history == ()
+
+def test_application_status_cannot_be_assigned_directly() -> None:
+    application = Application(
+        company_name="OPenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    with pytest.raises(AttributeError):
+        application.status = (
+            ApplicationStatus.INTERVIEW
+        )
+
+    assert application.status is ApplicationStatus.APPLIED
+    assert application.status_history == ()
