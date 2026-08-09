@@ -19,6 +19,12 @@ TERMINAL_STATUSES: frozenset[ApplicationStatus] = frozenset(
     }
 )
 
+@dataclass(frozen=True)
+class ApplicationStatusChange:
+    previous_status: ApplicationStatus
+    new_status: ApplicationStatus
+    changed_at: datetime
+
 @dataclass
 class Application:
     company_name: str
@@ -28,7 +34,17 @@ class Application:
     created_at: datetime = field(
         default_factory=lambda: datetime.now(UTC),
         init=False,
+   )     
+    _status_history: list[ApplicationStatusChange] = field(
+        default_factory=list,
+        init=False,
+        repr=False,
     )
+    
+    @property
+    def status_history(self) -> tuple[ApplicationStatusChange, ...]:
+        return tuple(self._status_history)
+
 
 #Burada nesnenin oluşturulma kurallarını koruyoruz.Nesnenin boş şirket veya pozisyon bilgisiyle oluşturulmasını engelliyoruz.
     def __post_init__(self) -> None:
@@ -57,4 +73,12 @@ class Application:
                 "new status must be different from current status"
             )
         
+        previous_status = self.status
+
+        status_change = ApplicationStatusChange(
+            previous_status=previous_status,
+            new_status=new_status,
+            changed_at=datetime.now(UTC),
+        )
         self.status = new_status
+        self._status_history.append(status_change)

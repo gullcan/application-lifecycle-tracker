@@ -120,5 +120,68 @@ def test_status_change_rejects_non_enum_value() -> None:
         application.change_status(
             "interview", #type: ignore[arg-type]
         )
-        
+
     assert application.status is ApplicationStatus.DRAFT
+
+def test_new_application_has_empty_status_history() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    assert application.status_history == ()
+
+def test_successful_status_change_is_recorded() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    assert application.status_history == ()
+
+def test_successful_status_change_is_recorded() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    before_change = datetime.now(UTC)
+
+    application.change_status(ApplicationStatus.SCREENING)
+
+    after_change = datetime.now(UTC)
+    status_change = application.status_history[0]
+
+    assert status_change.previous_status is ApplicationStatus.APPLIED
+    assert status_change.new_status is ApplicationStatus.SCREENING
+    assert before_change <= status_change.changed_at <= after_change
+    assert status_change.changed_at.utcoffset() == timedelta(0)
+
+def test_status_changes_are_stored_in_chronological_order() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+
+    application.change_status(ApplicationStatus.APPLIED)
+    application.change_status(ApplicationStatus.SCREENING)
+
+    transitions = [
+        (change.previous_status, change.new_status)
+        for change in application.status_history
+    ]
+
+    assert transitions == [
+        (ApplicationStatus.DRAFT, ApplicationStatus.APPLIED),
+        (ApplicationStatus.APPLIED, ApplicationStatus.SCREENING),
+    ]
+
+def test_failed_status_change_is_not_recorded() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.REJECTED,
+    )
+
+    with pytest.raises(ValueError, match="terminal status"):
+        application.change_status(ApplicationStatus.INTERVIEW)
+
+    assert application.status_history == ()
