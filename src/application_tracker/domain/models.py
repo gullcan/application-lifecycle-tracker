@@ -32,6 +32,7 @@ class Application:
             company_name: str,
             job_title: str,
             status: ApplicationStatus = ApplicationStatus.DRAFT,
+            follow_up_at: datetime | None = None,
     ) -> None:
         if not company_name.strip():
             raise ValueError("company_name cannot be blank")
@@ -51,6 +52,7 @@ class Application:
 
         self._status = status
         self._status_history: list[ApplicationStatusChange] = []
+        self._follow_up_at = follow_up_at 
 
     @property
     def id(self) -> UUID:
@@ -94,3 +96,11 @@ class Application:
         )
         self._status = new_status
         self._status_history.append(status_change)
+
+    def needs_follow_up(self, as_of: datetime) -> bool:
+        if self._follow_up_at is None:
+            return False
+        if self._status in TERMINAL_STATUSES:
+            return False
+        return self._follow_up_at <= as_of
+    

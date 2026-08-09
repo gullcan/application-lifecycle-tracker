@@ -211,3 +211,73 @@ def test_application_id_cannot_be_assigned_directly() -> None:
         application.id = uuid4() #type : ignore[misc]
 
     assert application.id == original_id
+
+
+def test_application_without_follow_up_date_does_not_need_follow_up() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    result = application.needs_follow_up(
+        as_of=datetime(2026, 8, 11, tzinfo=UTC)
+    )
+
+    assert result is False
+
+def test_application_with_future_follow_up_does_not_need_follow_up() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=datetime(2026, 8, 12, tzinfo=UTC)
+    )
+
+    result = application.needs_follow_up(
+        as_of=datetime(2026, 8, 11, tzinfo=UTC)
+    )
+
+    assert result is False
+
+def test_application_with_past_follow_up_needs_follow_up() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=datetime(2026, 8, 10, tzinfo=UTC)
+    )
+    result = application.needs_follow_up(
+        as_of=datetime(2026, 8, 11, tzinfo=UTC)
+    )
+
+    assert result is True
+
+def test_application_needs_follow_up_at_exact_deadline() -> None:
+    deadline = datetime(2026, 8, 10, 9, 30, tzinfo=UTC)
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=deadline,
+    )
+
+    result = application.needs_follow_up(as_of=deadline)
+    assert result is True
+
+@pytest.mark.parametrize(
+    "terminal_status",
+    [
+        ApplicationStatus.REJECTED,
+        ApplicationStatus.WITHDRAWN,
+    ],
+)
+def test_terminal_application_does_not_need_follow_up(
+    terminal_status: ApplicationStatus,
+) -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=terminal_status,
+        follow_up_at=datetime(2026, 8, 11, tzinfo=UTC)
+    )
+    result = application.needs_follow_up(
+        as_of=datetime(2026, 8, 11, tzinfo=UTC)
+    )
+
+    assert result is False
