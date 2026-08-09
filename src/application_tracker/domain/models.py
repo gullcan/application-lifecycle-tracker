@@ -12,6 +12,13 @@ class ApplicationStatus(Enum):
     REJECTED = "rejected"
     WITHDRAWN = "withdrwan"
 
+TERMINAL_STATUSES: frozenset[ApplicationStatus] = frozenset(
+    {
+        ApplicationStatus.REJECTED,
+        ApplicationStatus.WITHDRAWN,
+    }
+)
+
 @dataclass
 class Application:
     company_name: str
@@ -34,3 +41,20 @@ class Application:
         if not isinstance(self.status, ApplicationStatus):
             raise TypeError("status must be an ApplicationStatus")
 
+
+    def change_status(self, new_status: ApplicationStatus) -> None:
+        if not isinstance(new_status, ApplicationStatus):
+            raise TypeError("new_status must be an ApplicationStatus")
+
+        if self.status in TERMINAL_STATUSES:
+            raise ValueError(
+                f"cannot change status from terminal status"
+                f"'{self.status.value}'"
+            )
+        
+        if new_status is self.status:
+            raise ValueError(
+                "new status must be different from current status"
+            )
+        
+        self.status = new_status

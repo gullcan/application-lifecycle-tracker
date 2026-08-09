@@ -62,3 +62,63 @@ def test_application_records_creation_time_in_utc() -> None:
 
     assert before_creation <= application.created_at <= after_creation
     assert application.created_at.utcoffset() == timedelta(0)
+
+def test_application_status_can_change() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    application.change_status(ApplicationStatus.SCREENING)
+
+    assert application.status is ApplicationStatus.SCREENING
+
+@pytest.mark.parametrize(
+    "terminal_status",
+    [
+        ApplicationStatus.REJECTED,
+        ApplicationStatus.WITHDRAWN,
+    ],
+)
+
+def test_terminal_application_status_cannot_change(
+    terminal_status: ApplicationStatus,
+) -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backen Engineer",
+        status=terminal_status,
+    )
+
+    with pytest.raises(ValueError, match="terminal status"):
+        application.change_status(ApplicationStatus.INTERVIEW)
+
+    assert application.status is terminal_status
+
+def test_application_cannot_change_to_its_current_status() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+
+    with pytest.raises(ValueError, match="different from current status"):
+        application.change_status(ApplicationStatus.APPLIED)
+
+    assert application.status is ApplicationStatus.APPLIED
+
+def test_status_change_rejects_non_enum_value() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+
+    with pytest.raises(
+        TypeError,
+        match="new_status must be an ApplicationStatus",
+    ):
+        application.change_status(
+            "interview", #type: ignore[arg-type]
+        )
+        
+    assert application.status is ApplicationStatus.DRAFT
