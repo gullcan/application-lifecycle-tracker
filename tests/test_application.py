@@ -1,7 +1,7 @@
 import pytest
 from application_tracker.domain.models import Application, ApplicationStatus
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 def test_application_is_created_in_draft_status() -> None:
@@ -188,7 +188,7 @@ def test_failed_status_change_is_not_recorded() -> None:
 
 def test_application_status_cannot_be_assigned_directly() -> None:
     application = Application(
-        company_name="OPenAI",
+        company_name="OpenAI",
         job_title="Backend Engineer",
         status=ApplicationStatus.APPLIED,
     )
@@ -199,3 +199,15 @@ def test_application_status_cannot_be_assigned_directly() -> None:
 
     assert application.status is ApplicationStatus.APPLIED
     assert application.status_history == ()
+
+def test_application_id_cannot_be_assigned_directly() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    original_id = application.id
+
+    with pytest.raises(AttributeError):
+        application.id = uuid4() #type : ignore[misc]
+
+    assert application.id == original_id

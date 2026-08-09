@@ -46,11 +46,15 @@ class Application:
 
         self.company_name = company_name
         self.job_title = job_title
-        self.id: UUID = uuid4()
+        self._id: UUID = uuid4()
         self.created_at = datetime.now(UTC)
 
         self._status = status
         self._status_history: list[ApplicationStatusChange] = []
+
+    @property
+    def id(self) -> UUID:
+        return self._id
 
     @property
     def status(self) -> ApplicationStatus:
