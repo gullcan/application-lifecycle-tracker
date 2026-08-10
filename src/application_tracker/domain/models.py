@@ -120,4 +120,23 @@ class Application:
             return False
         
         return self._follow_up_at <= as_of
-    
+
+    @property
+    def follow_up_at(self) -> datetime | None:
+        return self._follow_up_at
+
+
+    def schedule_follow_up(
+            self,
+            follow_up_at: datetime,
+    ) -> None:
+        _require_timezone_aware(
+            follow_up_at,
+            "follow_up_at",
+        )
+
+        self._follow_up_at = follow_up_at
+
+    def clear_follow_up(self) -> None:
+        self._follow_up_at = None
+        

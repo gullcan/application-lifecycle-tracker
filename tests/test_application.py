@@ -315,3 +315,113 @@ def test_needs_follow_up_rejects_naive_as_of_datetime() -> None:
         match="as_of must be timezone-aware",
     ):
         application.needs_follow_up(as_of=naive_as_of)
+
+
+def test_follow_up_can_be_scheduled_after_creation() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    deadline = datetime(
+        2026,
+        8,
+        12,
+        9,
+        30,
+        tzinfo=UTC
+    )
+
+    application.schedule_follow_up(deadline)
+
+    assert application.follow_up_at == deadline
+    assert application.needs_follow_up(
+        as_of=deadline
+    ) is True
+
+def test_existing_follow_up_can_be_rescheduled() -> None:
+    first_deadline = datetime(
+        2026,
+        8,
+        12,
+        9,
+        30,
+        tzinfo=UTC,
+    )
+    new_deadline = datetime(
+        2026,
+        8,
+        15,
+        9,
+        30,
+        tzinfo=UTC,
+    )
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=first_deadline,
+    )
+
+    application.schedule_follow_up(new_deadline)
+
+    assert application.follow_up_at == new_deadline
+    assert application.needs_follow_up(
+        as_of=first_deadline
+    ) is False
+
+def test_follow_up_can_be_cleared() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=datetime(
+            2026,
+            8,
+            12,
+            tzinfo=UTC,
+        ),
+    )
+    application.clear_follow_up()
+
+    assert application.follow_up_at is None
+    assert application.needs_follow_up(
+        as_of=datetime(2026, 8, 20, tzinfo= UTC)
+    ) is False
+
+def test_clearing_follow_up_is_idempotent() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+
+    application.clear_follow_up()
+    application.clear_follow_up()
+    
+
+    assert application.follow_up_at is None
+
+def test_scheduling_follow_up_rejects_naive_datetime() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    naive_deadline = datetime(2026, 8, 12, 9, 30)
+
+    with pytest.raises(
+        ValueError,
+        match="follow_up_at must be timezone-aware",
+    ):
+        application.schedule_follow_up(naive_deadline)
+
+    assert application.follow_up_at is None
+
+def test_follow_up_at_cannot_be_assigned_directly() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+
+    with pytest.raises(AttributeError):
+        application.follow_up_at = (
+            datetime(2026, 8, 12, tzinfo=UTC)
+        )
+
+    assert application.follow_up_at is None
