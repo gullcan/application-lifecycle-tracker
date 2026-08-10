@@ -18,6 +18,14 @@ TERMINAL_STATUSES: frozenset[ApplicationStatus] = frozenset(
         ApplicationStatus.WITHDRAWN,
     }
 )
+def _require_timezone_aware( #baştaki _ bu fonksiyonun modülün iç implementation detayı olduğunu anlatan Python convention’ıdır.
+        value: datetime,
+        field_name: str,
+) -> None: #Fonksiyon yeni bir değer üretmez: Geçerliyse sessizce biter. Geçersizse exception üretir.
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(
+            f"{field_name} must be timezone-aware"
+        )
 
 @dataclass(frozen=True)
 class ApplicationStatusChange:
@@ -43,6 +51,11 @@ class Application:
         if not isinstance(status, ApplicationStatus):
             raise TypeError(
                 "status must be an ApplicationStatus"
+            )
+        if follow_up_at is not None:
+            _require_timezone_aware(
+                follow_up_at,
+                "follow_up_at",
             )
 
         self.company_name = company_name
@@ -98,9 +111,13 @@ class Application:
         self._status_history.append(status_change)
 
     def needs_follow_up(self, as_of: datetime) -> bool:
+        _require_timezone_aware(as_of, "as_of")
+
         if self._follow_up_at is None:
             return False
+        
         if self._status in TERMINAL_STATUSES:
             return False
+        
         return self._follow_up_at <= as_of
     

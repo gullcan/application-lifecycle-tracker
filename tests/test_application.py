@@ -281,3 +281,37 @@ def test_terminal_application_does_not_need_follow_up(
     )
 
     assert result is False
+
+def test_application_rejects_naive_follow_up_datetime() -> None:
+    naive_follow_up = datetime(2026, 8, 10, 9, 30)
+
+    with pytest.raises(
+        ValueError,
+        match="follow_up_at must be timezone-aware",
+    ):
+        Application(
+            company_name="OpenAI",
+            job_title="Backend Engineer",
+            follow_up_at=naive_follow_up,
+        )
+
+def test_needs_follow_up_rejects_naive_as_of_datetime() -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=datetime(
+            2026,
+            8,
+            10,
+            9,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+    naive_as_of = datetime(2026, 8, 11, 9,30)
+
+    with pytest.raises(
+        ValueError,
+        match="as_of must be timezone-aware",
+    ):
+        application.needs_follow_up(as_of=naive_as_of)
