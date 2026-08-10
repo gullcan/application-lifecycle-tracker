@@ -2,6 +2,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from uuid import UUID, uuid4
+from application_tracker.domain.validation import (
+    require_timezone_aware,
+)
 
 class ApplicationStatus(Enum):
     DRAFT = "draft"
@@ -18,14 +21,6 @@ TERMINAL_STATUSES: frozenset[ApplicationStatus] = frozenset(
         ApplicationStatus.WITHDRAWN,
     }
 )
-def _require_timezone_aware( #baştaki _ bu fonksiyonun modülün iç implementation detayı olduğunu anlatan Python convention’ıdır.
-        value: datetime,
-        field_name: str,
-) -> None: #Fonksiyon yeni bir değer üretmez: Geçerliyse sessizce biter. Geçersizse exception üretir.
-    if value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError(
-            f"{field_name} must be timezone-aware"
-        )
 
 @dataclass(frozen=True)
 class ApplicationStatusChange:
@@ -53,7 +48,7 @@ class Application:
                 "status must be an ApplicationStatus"
             )
         if follow_up_at is not None:
-            _require_timezone_aware(
+            require_timezone_aware(
                 follow_up_at,
                 "follow_up_at",
             )
@@ -111,7 +106,7 @@ class Application:
         self._status_history.append(status_change)
 
     def needs_follow_up(self, as_of: datetime) -> bool:
-        _require_timezone_aware(as_of, "as_of")
+        require_timezone_aware(as_of, "as_of")
 
         if self._follow_up_at is None:
             return False
@@ -130,7 +125,7 @@ class Application:
             self,
             follow_up_at: datetime,
     ) -> None:
-        _require_timezone_aware(
+        require_timezone_aware(
             follow_up_at,
             "follow_up_at",
         )
@@ -139,4 +134,3 @@ class Application:
 
     def clear_follow_up(self) -> None:
         self._follow_up_at = None
-        

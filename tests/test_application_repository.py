@@ -1,4 +1,5 @@
 from uuid import uuid4
+from datetime import UTC, datetime
 
 import pytest
 
@@ -138,3 +139,53 @@ def test_status_filter_rejcets_non_enum_value() -> None:
         repository.find_by_status(
             "interview", #type: ignnore[arg-type]
         )
+def test_repository_finds_applications_needing_follow_up() -> None:
+    repository = InMemoryApplicationRepository()
+    as_of = datetime(2026, 8, 15, tzinfo=UTC)
+
+    due_application = Application( #Tarih geçmiş + aktif → sonuçta olmalı
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+        follow_up_at=datetime(2026, 8, 14, tzinfo=UTC),
+    )
+    future_application = Application( #Tarih gelmemiş → sonuçta olmamalı
+        company_name="Anthropic",
+        job_title="Python Engineer",
+        status=ApplicationStatus.INTERVIEW,
+        follow_up_at=datetime(2026, 8, 16, tzinfo=UTC),
+    )
+    unscheduled_application = Application( #Tarih yok → sonuçta olmamalı
+        company_name="Stripe",
+        job_title="Software Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    terminal_application = Application( #Tarih geçmiş ama rejected → sonuçta olmamalı
+        company_name="Github",
+        job_title="Platform Engineer",
+        status=ApplicationStatus.REJECTED,
+        follow_up_at=datetime(2026, 8, 13, tzinfo=UTC),
+    )
+
+    for application in ( # Application nesnelerini bir tuple içine koyup dolaşıyoruz
+        due_application,
+        future_application,
+        unscheduled_application,
+        terminal_application,
+    ):
+        repository.add(application)
+
+        result = repository.find_needing_follow_up(as_of)
+
+        assert result == [due_application]
+
+
+def test_follow_up_query_rejects_naive_as_of_when_empty() -> None:
+    repository = InMemoryApplicationRepository()
+    naive_as_of = datetime(2026, 8, 15)
+
+    with pytest.raises(
+        ValueError,
+        match="as_of must be timezone-aware",
+    ):
+        repository.find_needing_follow_up(naive_as_of)

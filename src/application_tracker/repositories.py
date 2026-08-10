@@ -3,6 +3,10 @@ from application_tracker.domain.models import (
     Application,
     ApplicationStatus,
 )
+from datetime import datetime
+from application_tracker.domain.validation import (
+    require_timezone_aware,
+)
 
 class ApplicationNotFoundError(LookupError):
     """Raised when an application cannot be found."""
@@ -46,4 +50,15 @@ class InMemoryApplicationRepository:
             if application.status is status
         ]
 
+    def find_needing_follow_up(
+            self,
+            as_of: datetime,
+    ) -> list[Application]:
+        require_timezone_aware(as_of, "as_of")
+        
+        return [
+            application #Sonuç listesine hangi değerin ekleneceği.
+            for application in self._applications.values() #Verinin nereden geldiği.
+            if application.needs_follow_up(as_of) #Hangi nesnelerin seçileceği.
+        ]
                 
