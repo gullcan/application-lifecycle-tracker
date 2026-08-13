@@ -7,6 +7,11 @@ from datetime import datetime
 from application_tracker.domain.validation import (
     require_timezone_aware,
 )
+from typing import Protocol
+
+class ApplicationRepository(Protocol):
+    def add(self, application: Application) -> None:
+        ...
 
 class ApplicationNotFoundError(LookupError):
     """Raised when an application cannot be found."""
