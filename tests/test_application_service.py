@@ -127,4 +127,96 @@ def test_service_preserves_state_when_status_change_fails() -> None:
 
     assert application.status is ApplicationStatus.REJECTED
     assert application.status_history == ()
-    
+
+
+def test_service_schedule_follow_up_for_selected_application() -> None:
+    repository = InMemoryApplicationRepository()
+    service = ApplicationService(repository)
+    target_application = service.create_application( #tarih atanmalı
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    other_application = service.create_application( #değişmemeli
+        company_name="Anthropic",
+        job_title="Python Engineer",
+    )
+    deadline = datetime(
+        2026,
+        8,
+        20,
+        9,
+        30,
+        tzinfo=UTC,
+    )
+
+    updated_application = (
+        service.schedule_application_follow_up(
+            application_id=target_application.id,
+            follow_up_at=deadline,
+        )
+    )
+
+    assert updated_application is target_application
+    assert target_application.follow_up_at == deadline
+    assert other_application.follow_up_at is None
+
+
+def test_service_clears_application_follow_up() -> None:
+    repository = InMemoryApplicationRepository()
+    service = ApplicationService(repository)
+    application = service.create_application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=datetime(
+            2026,
+            8,
+            20,
+            9,
+            30,
+            tzinfo=UTC,
+        ),
+    )
+
+    updated_application = (
+        service.clear_application_follow_up(
+            application_id=application.id,
+        )
+    )
+    assert updated_application is application
+    assert application.follow_up_at is None
+
+
+def test_service_preserves_follow_up_when_rescheduling_fails() -> None:
+    repository = InMemoryApplicationRepository()
+    service = ApplicationService(repository)
+    original_deadline = datetime(
+        2026,
+        8,
+        20,
+        9,
+        30,
+        tzinfo=UTC,
+    )
+    application = service.create_application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=original_deadline,
+    )
+    naive_deadline = datetime(
+        2026,
+        8,
+        25,
+        9,
+        30,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="follow_up_at must be timezone-aware",
+    ):
+        service.schedule_application_follow_up(
+            application_id=application.id,
+            follow_up_at=naive_deadline,
+        )
+
+    assert application.follow_up_at == original_deadline
