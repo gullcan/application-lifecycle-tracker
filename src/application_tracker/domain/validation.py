@@ -1,3 +1,5 @@
+"""Provide shared validation rules for the domain layer."""
+
 from datetime import datetime
 
 def require_timezone_aware(

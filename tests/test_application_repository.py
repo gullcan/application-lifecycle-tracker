@@ -137,30 +137,30 @@ def test_status_filter_rejcets_non_enum_value() -> None:
         match="status must be an ApplicationStatus",
     ):
         repository.find_by_status(
-            "interview", #type: ignnore[arg-type]
+            "interview", # type: ignnore[arg-type]
         )
 def test_repository_finds_applications_needing_follow_up() -> None:
     repository = InMemoryApplicationRepository()
     as_of = datetime(2026, 8, 15, tzinfo=UTC)
 
-    due_application = Application( #Tarih geçmiş + aktif → sonuçta olmalı
+    due_application = Application( # Tarih geçmiş + aktif → sonuçta olmalı
         company_name="OpenAI",
         job_title="Backend Engineer",
         status=ApplicationStatus.APPLIED,
         follow_up_at=datetime(2026, 8, 14, tzinfo=UTC),
     )
-    future_application = Application( #Tarih gelmemiş → sonuçta olmamalı
+    future_application = Application( # Tarih gelmemiş → sonuçta olmamalı
         company_name="Anthropic",
         job_title="Python Engineer",
         status=ApplicationStatus.INTERVIEW,
         follow_up_at=datetime(2026, 8, 16, tzinfo=UTC),
     )
-    unscheduled_application = Application( #Tarih yok → sonuçta olmamalı
+    unscheduled_application = Application( # Tarih yok → sonuçta olmamalı
         company_name="Stripe",
         job_title="Software Engineer",
         status=ApplicationStatus.APPLIED,
     )
-    terminal_application = Application( #Tarih geçmiş ama rejected → sonuçta olmamalı
+    terminal_application = Application( # Tarih geçmiş ama rejected → sonuçta olmamalı
         company_name="Github",
         job_title="Platform Engineer",
         status=ApplicationStatus.REJECTED,

@@ -74,13 +74,13 @@ def test_service_changes_application_status() -> None:
         job_title="Backend Engineer",
         status=ApplicationStatus.APPLIED,
     )
-    #Arrange: Repository oluştur → Service oluştur → APPLIED durumunda Application kaydet
+    # Arrange: Repository oluştur → Service oluştur → APPLIED durumunda Application kaydet
 
     updated_application = service.change_application_status(
         application_id=application.id,
         new_status=ApplicationStatus.SCREENING,
     )
-    #Act: Service’e Application UUID’sini ve SCREENING status’unu ver
+    # Act: Service’e Application UUID’sini ve SCREENING status’unu ver
 
     stored_application = repository.get(application.id)
     status_change = application.status_history[-1] # listenin veya tuple’ın son elemanını getirir. Python’da -1, sondan ilk elemanı ifade eder.
@@ -91,7 +91,7 @@ def test_service_changes_application_status() -> None:
     assert status_change.previous_status is ApplicationStatus.APPLIED
     assert status_change.new_status is ApplicationStatus.SCREENING
 
-    #Assert: Dönen nesne aynı Application mı? Repository güncel nesneyi görüyor mu? Status değişti mi? History doğru geçişi içeriyor mu?
+    # Assert: Dönen nesne aynı Application mı? Repository güncel nesneyi görüyor mu? Status değişti mi? History doğru geçişi içeriyor mu?
 
 def test_status_change_raises_error_for_unknown_application() -> None:
     repository = InMemoryApplicationRepository()
@@ -107,7 +107,7 @@ def test_status_change_raises_error_for_unknown_application() -> None:
             new_status=ApplicationStatus.INTERVIEW,
         )
 
-#Service UUID'yi repository'ye verir → repository kayıt bulamaz → ApplicationNotFoundError üretir → service hatayı gizlemez → caller anlamlı hatayı alır
+# Service UUID'yi repository'ye verir → repository kayıt bulamaz → ApplicationNotFoundError üretir → service hatayı gizlemez → caller anlamlı hatayı alır
 
 
 def test_service_preserves_state_when_status_change_fails() -> None:
@@ -132,11 +132,11 @@ def test_service_preserves_state_when_status_change_fails() -> None:
 def test_service_schedule_follow_up_for_selected_application() -> None:
     repository = InMemoryApplicationRepository()
     service = ApplicationService(repository)
-    target_application = service.create_application( #tarih atanmalı
+    target_application = service.create_application( # tarih atanmalı
         company_name="OpenAI",
         job_title="Backend Engineer",
     )
-    other_application = service.create_application( #değişmemeli
+    other_application = service.create_application( # değişmemeli
         company_name="Anthropic",
         job_title="Python Engineer",
     )

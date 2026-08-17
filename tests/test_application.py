@@ -33,7 +33,7 @@ def test_application_rejects_status_that_is_not_an_enum() -> None:
         Application(
             company_name="OpenAI",
             job_title="Backend Engineer",
-            status="unknown", #type: ignore[arg-type]
+            status="unknown", # type: ignore[arg-type]
         )
 
 def test_each_application_gets_a_unique_id() -> None:
@@ -118,7 +118,7 @@ def test_status_change_rejects_non_enum_value() -> None:
         match="new_status must be an ApplicationStatus",
     ):
         application.change_status(
-            "interview", #type: ignore[arg-type]
+            "interview", # type: ignore[arg-type]
         )
 
     assert application.status is ApplicationStatus.DRAFT

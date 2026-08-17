@@ -11,13 +11,13 @@ from typing import Protocol
 
 class ApplicationRepository(Protocol):
     def add(self, application: Application) -> None:
-        ...     #Burada methodun implementation’ını yazmıyoruz; yalnızca kontratını tarif ediyoruz
+        ...     # Burada methodun implementation’ını yazmıyoruz; yalnızca kontratını tarif ediyoruz
 
     def get(
             self,
             application_id: UUID,
     ) -> Application:
-        ...      #Bu repository bir UUID almalı ve bir Application döndürmeli.
+        ...      # Bu repository bir UUID almalı ve bir Application döndürmeli.
 
     def list_all(self) -> list[Application]:
         ...
@@ -84,8 +84,8 @@ class InMemoryApplicationRepository:
         require_timezone_aware(as_of, "as_of")
         
         return [
-            application #Sonuç listesine hangi değerin ekleneceği.
-            for application in self._applications.values() #Verinin nereden geldiği.
-            if application.needs_follow_up(as_of) #Hangi nesnelerin seçileceği.
+            application # Sonuç listesine hangi değerin ekleneceği.
+            for application in self._applications.values() # Verinin nereden geldiği.
+            if application.needs_follow_up(as_of) # Hangi nesnelerin seçileceği.
         ]
                 

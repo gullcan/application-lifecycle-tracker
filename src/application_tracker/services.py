@@ -39,7 +39,7 @@ class ApplicationService:
             self,
             application_id: UUID,  # Hangi Application’ın değiştirileceğini belirtir. UUID nesneleri immutable’dır; kimlik değeri oluşturulduktan sonra değişmez.
             new_status: ApplicationStatus,  # Hedef domain durumudur. Service raw string değil Enum beklediğini açıkça gösterir.
-    ) -> Application:  #Başarılı işlemde güncellenmiş entity dönecektir.
+    ) -> Application:  # Başarılı işlemde güncellenmiş entity dönecektir.
 
         application = self._repository.get(application_id)  # Application bulma. Kayıt bulundu./Kayıt bulunamadı
 
