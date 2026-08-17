@@ -220,3 +220,109 @@ def test_service_preserves_follow_up_when_rescheduling_fails() -> None:
         )
 
     assert application.follow_up_at == original_deadline
+
+
+def test_service_lists_all_applications() -> None:
+    repository = InMemoryApplicationRepository()
+    service = ApplicationService(repository)
+    first_application = service.create_application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    second_application = service.create_application(
+        company_name="Anthropic",
+        job_title="Python Engineer",
+    )
+
+    applications = service.list_applications()
+    applications_ids = {
+        application.id
+        for application in applications
+    }
+
+    assert applications_ids == {
+        first_application.id,
+        second_application.id,
+    }
+
+def test_services_filters_applications_by_status() -> None:
+    repository = InMemoryApplicationRepository()
+    service = ApplicationService(repository)
+    applied_applications = service.create_application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    interview_application = service.create_application(
+        company_name="Anthropic",
+        job_title="Python Engineer",
+        status=ApplicationStatus.INTERVIEW,
+    )
+
+    applications = service.list_applications(
+        status=ApplicationStatus.INTERVIEW,
+    )
+
+    assert applications == [interview_application]
+    assert applied_applications not in applications
+
+
+def test_service_lists_applications_needing_follow_up() -> None:
+    repository = InMemoryApplicationRepository()
+    service = ApplicationService(repository)
+    as_of = datetime(2026, 8, 20, tzinfo=UTC)
+
+    due_application = service.create_application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+        follow_up_at=datetime(
+            2026,
+            8,
+            19,
+            tzinfo=UTC,
+        ),
+    )
+    service.create_application(
+        company_name="Anthropic",
+        job_title="Python Engineer",
+        status=ApplicationStatus.INTERVIEW,
+        follow_up_at=datetime(
+            2026,
+            8,
+            21,
+            tzinfo=UTC,
+        ),
+    )
+    service.create_application(
+        company_name="Github",
+        job_title="Platform Engineer",
+        status=ApplicationStatus.REJECTED,
+        follow_up_at=datetime(
+            2026,
+            8,
+            18,
+            tzinfo=UTC,
+        ),
+    )
+
+    applications = (
+        service.list_applications_needing_follow_up(
+            as_of=as_of,
+        )
+    )
+
+    assert applications == [due_application]
+
+def test_follow_up_list_rejects_naive_as_of() -> None:
+    repository = InMemoryApplicationRepository()
+    service = ApplicationService(repository)
+    naive_as_of = datetime(2026, 8, 20)
+
+    with pytest.raises(
+        ValueError,
+        match="as_of must be timezone-aware",
+    ):
+        service.list_applications_needing_follow_up(
+            as_of=naive_as_of,
+        )

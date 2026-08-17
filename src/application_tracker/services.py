@@ -67,4 +67,22 @@ class ApplicationService:
         application.clear_follow_up()
 
         return application
+
+
+    def list_applications(
+            self,
+            status: ApplicationStatus | None = None, 
+    ) -> list[Application]:
+        if status is None:
+            return self._repository.list_all()
+
+        return self._repository.find_by_status(status)
+
+    def list_applications_needing_follow_up(
+            self,
+            as_of: datetime,
+    ) -> list[Application]:
+        return self._repository.find_needing_follow_up(
+            as_of
+        )
     

@@ -11,7 +11,29 @@ from typing import Protocol
 
 class ApplicationRepository(Protocol):
     def add(self, application: Application) -> None:
+        ...     #Burada methodun implementation’ını yazmıyoruz; yalnızca kontratını tarif ediyoruz
+
+    def get(
+            self,
+            application_id: UUID,
+    ) -> Application:
+        ...      #Bu repository bir UUID almalı ve bir Application döndürmeli.
+
+    def list_all(self) -> list[Application]:
         ...
+
+    def find_by_status(
+            self,
+            status: ApplicationStatus,
+    ) -> list[Application]:
+        ...
+
+    def find_needing_follow_up(
+            self,
+            as_of: datetime,
+    ) -> list[Application]:
+        ...
+
 
 class ApplicationNotFoundError(LookupError):
     """Raised when an application cannot be found."""
