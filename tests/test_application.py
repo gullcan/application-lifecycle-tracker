@@ -425,3 +425,7 @@ def test_follow_up_at_cannot_be_assigned_directly() -> None:
         )
 
     assert application.follow_up_at is None
+
+
+def test_withdrawn_status_has_correct_external_value() -> None:
+    assert ApplicationStatus.WITHDRAWN.value == "withdrawn"

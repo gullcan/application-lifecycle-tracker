@@ -13,7 +13,7 @@ class ApplicationStatus(Enum):
     INTERVIEW = "interview"
     OFFER = "offer"
     REJECTED = "rejected"
-    WITHDRAWN = "withdrwan"
+    WITHDRAWN = "withdrawn"
 
 TERMINAL_STATUSES: frozenset[ApplicationStatus] = frozenset(
     {
