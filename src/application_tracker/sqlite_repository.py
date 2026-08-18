@@ -11,6 +11,9 @@ from application_tracker.repositories import (
     ApplicationNotFoundError,
     DuplicateApplicationError,
 )
+from application_tracker.domain.validation import (
+    require_timezone_aware,
+)
 
 class SQLiteApplicationRepository:
     def __init__(
@@ -198,7 +201,66 @@ class SQLiteApplicationRepository:
             status_history=status_history,
         )
     
+
+    def list_all(self) -> list[Application]:
+        connection = self._connect()
+
+        try:
+            rows = connection.execute(
+                """
+                SELECT id
+                FROM applications
+                ORDER BY created_at, id
+                """
+            ).fetchall()
+        finally:
+            connection.close()
+
+        return [
+            self.get(UUID(row["id"]))
+            for row in rows
+        ]
+
+    def find_by_status(
+            self,
+            status: ApplicationStatus,
+    ) -> list[Application]:
+        if not isinstance(status, ApplicationStatus):
+            raise TypeError(
+                "status must be an ApplicationStatus"
+            )
+
+        connection = self._connect()
+
+        try:
+            rows = connection.execute(
+                """
+                SELECT id
+                FROM applications
+                WHERE status = ?
+                ORDER BY created_at, id
+                """,
+                (status.value,),
+            ).fetchall()
+        finally:
+            connection.close()
+
+        return [
+            self.get(UUID(row["id"]))
+            for row in rows
+        ]
+
+    def find_needing_follow_up(
+            self,
+            as_of: datetime,
+    ) -> list[Application]:
+        require_timezone_aware(as_of, "as_of")
+
+        return [
+            application
+            for application in self.list_all()
+            if application.needs_follow_up(as_of)
+        ]
             
-            
-    
+
             

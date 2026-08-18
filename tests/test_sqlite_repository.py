@@ -78,4 +78,109 @@ def test_sqlite_repository_raises_error_for_unknown_application(
     ):
         repository.get(unknown_id)
 
-        
+
+def test_sqlite_repository_lists_all_applications(
+        tmp_path: Path,
+) -> None:
+    repository = SQLiteApplicationRepository(
+        tmp_path / "applications.db"
+    )
+    first = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    second = Application(
+        company_name="Anthropic",
+        job_title="Python Engineer",
+    )
+    repository.add(first)
+    repository.add(second)
+
+    applications = repository.list_all()
+
+    assert {
+        application.id
+        for application in applications
+    } == {first.id, second.id}
+
+
+def test_sqlite_repository_finds_applications_by_status(
+        tmp_path: Path,
+) -> None:
+    repository = SQLiteApplicationRepository(
+        tmp_path / "applications.db"
+    )
+    applied = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    interview = Application(
+        company_name="Anthropic",
+        job_title="Python Engineer",
+        status=ApplicationStatus.INTERVIEW,
+    )
+    repository.add(applied)
+    repository.add(interview)
+
+    applications = repository.find_by_status(
+        ApplicationStatus.INTERVIEW
+    )
+
+    assert [application.id for application in applications] == [
+        interview.id
+    ]
+
+
+def test_sqlite_repository_finds_applications_needing_follow_up(
+        tmp_path: Path,
+) -> None:
+    repository = SQLiteApplicationRepository(
+        tmp_path / "applications.db"
+    )
+    as_of = datetime(2026, 8, 20, tzinfo=UTC)
+
+    due = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+        follow_up_at=datetime(2026, 8, 19, tzinfo=UTC),
+    )
+    future = Application(
+        company_name="Anthropic",
+        job_title="Python Engineer",
+        status=ApplicationStatus.INTERVIEW,
+        follow_up_at=datetime(2026, 8, 21, tzinfo=UTC),
+    )
+    terminal = Application(
+        company_name="GitHub",
+        job_title="Platform Engineer",
+        status=ApplicationStatus.REJECTED,
+        follow_up_at=datetime(2026, 8, 18, tzinfo=UTC),
+    )
+
+    repository.add(due)
+    repository.add(future)
+    repository.add(terminal)
+
+    applications = repository.find_needing_follow_up(as_of)
+
+    assert [application.id for application in applications] == [
+        due.id
+    ]
+
+
+def test_sqlite_follow_up_query_rejects_naive_datetime(
+        tmp_path: Path,
+) -> None:
+    repository = SQLiteApplicationRepository(
+        tmp_path / "applications.db"
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="as_of must be timezone-aware",
+    ):
+        repository.find_needing_follow_up(
+            datetime(2026, 8, 20)
+        )
