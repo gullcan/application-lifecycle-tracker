@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from application_tracker.domain.validation import (
     require_timezone_aware,
 )
+from typing import Self
 
 class ApplicationStatus(Enum):
     DRAFT = "draft"
@@ -62,6 +63,46 @@ class Application:
         self._status_history: list[ApplicationStatusChange] = []
         self._follow_up_at = follow_up_at 
 
+    @classmethod
+    def restore(
+        cls,
+        *,
+        application_id: UUID,
+        company_name: str,
+        job_title: str,
+        status: ApplicationStatus,
+        created_at: datetime,
+        follow_up_at: datetime | None = None,
+        status_history: tuple [
+            ApplicationStatusChange,
+            ...
+        ] = (),
+
+    ) -> Self:
+        require_timezone_aware(
+            created_at,
+            "created_at",
+        )
+        for status_change in status_history:
+            require_timezone_aware(
+                status_change.changed_at,
+                "status_history.changed_at",
+            )
+
+        application = cls(
+            company_name=company_name,
+            job_title=job_title,
+            status=status,
+            follow_up_at=follow_up_at,
+        )
+
+        application._id= application_id
+        application.created_at = created_at
+        application._status_history = list(status_history)
+
+        return application
+
+        
     @property
     def id(self) -> UUID:
         return self._id

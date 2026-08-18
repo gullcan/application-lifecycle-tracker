@@ -1,5 +1,9 @@
 import pytest
-from application_tracker.domain.models import Application, ApplicationStatus
+from application_tracker.domain.models import (
+    Application, 
+    ApplicationStatus, 
+    ApplicationStatusChange,
+)
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -429,3 +433,75 @@ def test_follow_up_at_cannot_be_assigned_directly() -> None:
 
 def test_withdrawn_status_has_correct_external_value() -> None:
     assert ApplicationStatus.WITHDRAWN.value == "withdrawn"
+
+def test_restore_preserves_persisted_applicatio_state() -> None:
+    application_id = UUID(
+        "12345678-1234-5678-1234-567812345678"
+    )
+    created_at = datetime(2026, 8, 1, tzinfo=UTC)
+    follow_up_at = datetime(2026, 8, 10, tzinfo=UTC)
+    status_history = (
+        ApplicationStatusChange(
+            previous_status=ApplicationStatus.APPLIED,
+            new_status=ApplicationStatus.SCREENING,
+            changed_at=datetime(2026, 8, 5, tzinfo=UTC),
+        ),
+    )
+
+    application = Application.restore(
+        application_id=application_id,
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.SCREENING,
+        created_at=created_at,
+        follow_up_at=follow_up_at,
+        status_history=status_history,
+    )
+
+    assert application.id == application_id
+    assert application.company_name == "OpenAI"
+    assert application.job_title == "Backend Engineer"
+    assert application.status is ApplicationStatus.SCREENING
+    assert application.created_at == created_at
+    assert application.follow_up_at == follow_up_at
+    assert application.status_history == status_history
+
+def test_restore_rejects_timezone_naive_created_at() -> None:
+    with pytest.raises(
+        ValueError,
+        match="created_at must be timezone-aware",
+    ):
+        Application.restore(
+            application_id=UUID(
+                "12345678-1234-5678-1234-567812345678"
+            ),
+            company_name="OpenAI",
+            job_title="Backend Engineer",
+            status=ApplicationStatus.APPLIED,
+            created_at=datetime(2026, 8, 1),
+        )
+
+def test_restore_rejects_timezone_naive_status_history() -> None:
+    status_history = (
+        ApplicationStatusChange(
+            previous_status=ApplicationStatus.APPLIED,
+            new_status=ApplicationStatus.SCREENING,
+            changed_at=datetime(2026, 8, 5),
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="status_history.changed_at must be timezone-aware",
+    ):
+        Application.restore(
+            application_id=UUID(
+                "12345678-1234-5678-1234-567812345678"
+            ),
+            company_name="OpenAI",
+            job_title="Backend Engineer",
+            status=ApplicationStatus.SCREENING,
+            created_at=datetime(2026, 8, 1, tzinfo=UTC),
+            status_history=status_history,
+        )
+        
