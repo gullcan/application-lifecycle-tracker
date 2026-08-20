@@ -45,6 +45,8 @@ class ApplicationService:
 
         application.change_status(new_status) # Gerçek status kontrolünü yapar.
 
+        self._repository.save(application)
+
         return application
 
     def schedule_application_follow_up(
@@ -56,6 +58,8 @@ class ApplicationService:
 
         application.schedule_follow_up(follow_up_at)
 
+        self._repository.save(application)
+
         return application
 
     def clear_application_follow_up(
@@ -65,6 +69,8 @@ class ApplicationService:
         application = self._repository.get(application_id)
 
         application.clear_follow_up()
+
+        self._repository.save(application)
 
         return application
 
@@ -77,6 +83,7 @@ class ApplicationService:
             return self._repository.list_all()
 
         return self._repository.find_by_status(status)
+    
 
     def list_applications_needing_follow_up(
             self,
@@ -85,4 +92,5 @@ class ApplicationService:
         return self._repository.find_needing_follow_up(
             as_of
         )
+
     
