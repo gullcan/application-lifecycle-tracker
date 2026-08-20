@@ -195,5 +195,4 @@ The API layer will:
 - Return structured JSON responses
 - Map domain and repository exceptions to appropriate HTTP status codes
 - Use SQLite persistence without moving business rules into route handlers
-```
 

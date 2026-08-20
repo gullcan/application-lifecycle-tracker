@@ -64,7 +64,7 @@ class Application:
         self._follow_up_at = follow_up_at 
 
     @classmethod
-    def restore(
+    def restore( # restore() is a factory method.
         cls,
         *,
         application_id: UUID,
