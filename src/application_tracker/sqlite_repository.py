@@ -263,4 +263,71 @@ class SQLiteApplicationRepository:
         ]
             
 
+    def save(self, application: Application) -> None:
+        connection = self._connect()
+
+        try: 
+            with connection:
+                cursor = connection.execute(
+                    """
+                    UPDATE applications
+                    SET
+                        company_name = ?,
+                        job_title = ?,
+                        status = ?,
+                        created_at = ?,
+                        follow_up_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        application.company_name,
+                        application.job_title,
+                        application.status.value,
+                        application.created_at.isoformat(),
+                        (
+                            application.follow_up_at.isoformat()
+                            if application.follow_up_at is not None
+                            else None
+                        ),
+                        str(application.id),
+                    ),
+                )
+                if cursor.rowcount == 0:
+                    raise ApplicationNotFoundError(
+                        f"application with id "
+                        f"'{application.id}' was not found"
+                    )
+
+                connection.execute(
+                    """
+                    DELETE FROM application_status_changes
+                    WHERE application_id = ?
+                    """,
+                    (str(application.id),),
+                )
+                connection.executemany(
+                    """
+                    INSERT INTO application_status_changes (
+                        application_id,
+                        sequence_number,
+                        previous_status,
+                        new_status,
+                        changed_at
+                        )
+                        VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        (
+                            str(application.id),
+                            sequence_number,
+                            status_change.previous_status.value,
+                            status_change.new_status.value,
+                            status_change.changed_at.isoformat(),
+                        )
+                        for sequence_number, status_change
+                        in enumerate(application.status_history)
+                    ),
+                )
             
+        finally:
+            connection.close()

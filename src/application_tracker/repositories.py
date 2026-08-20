@@ -34,6 +34,8 @@ class ApplicationRepository(Protocol):
     ) -> list[Application]:
         ...
 
+    def save(self, application: Application) -> None: # Var olan bir Application’ın güncel durumunu sakla. Kayıt yoksa hata üret.
+        ...
 
 class ApplicationNotFoundError(LookupError):
     """Raised when an application cannot be found."""
@@ -88,4 +90,12 @@ class InMemoryApplicationRepository:
             for application in self._applications.values() # Verinin nereden geldiği.
             if application.needs_follow_up(as_of) # Hangi nesnelerin seçileceği.
         ]
-                
+
+
+    def save(self, application: Application) -> None:
+        if application.id not in self._applications:
+            raise ApplicationNotFoundError(
+                f"application with id "
+                f"'{application.id}' was not found"
+            )
+        self._applications[application.id] = application

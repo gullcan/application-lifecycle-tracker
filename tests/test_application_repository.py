@@ -15,7 +15,7 @@ from application_tracker.domain.models import (
     ApplicationStatus,
 )
 
-def test_repository_adds_and_retrieves_applicaiton() -> None:
+def test_repository_adds_and_retrieves_application() -> None:
     repository = InMemoryApplicationRepository()
     application = Application(
         company_name="OpenAI",
@@ -189,3 +189,37 @@ def test_follow_up_query_rejects_naive_as_of_when_empty() -> None:
         match="as_of must be timezone-aware",
     ):
         repository.find_needing_follow_up(naive_as_of)
+
+
+def test_repository_saves_replacement_application() -> None:
+    repository = InMemoryApplicationRepository()
+    original = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    repository.add(original)
+
+    replacement = Application.restore(
+        application_id=original.id,
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.INTERVIEW,
+        created_at=original.created_at,
+    )
+    repository.save(replacement)
+
+    assert repository.get(original.id) is replacement
+
+
+def test_repository_rejects_save_for_unknown_application() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    with pytest.raises(
+        ApplicationNotFoundError,
+        match=str(application.id),
+    ):
+        repository.save(application)

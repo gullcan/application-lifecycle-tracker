@@ -184,3 +184,51 @@ def test_sqlite_follow_up_query_rejects_naive_datetime(
         repository.find_needing_follow_up(
             datetime(2026, 8, 20)
         )
+
+
+def test_sqlite_repository_saves_application_changes(
+        tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "applications.db"
+    repository = SQLiteApplicationRepository(database_path)
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    repository.add(application)
+
+    application.change_status(ApplicationStatus.SCREENING)
+    application.schedule_follow_up(
+        datetime(2026, 8, 25, tzinfo=UTC)
+    )
+    repository.save(application)
+
+    reader = SQLiteApplicationRepository(database_path)
+    restored = reader.get(application.id)
+
+    assert restored.status is ApplicationStatus.SCREENING
+    assert restored.follow_up_at == datetime(
+        2026,
+        8,
+        25,
+        tzinfo=UTC,
+    )
+    assert restored.status_history == application.status_history
+
+
+def test_sqlite_repository_rejects_save_for_unknown_application(
+        tmp_path: Path,
+) -> None:
+    repository = SQLiteApplicationRepository(
+        tmp_path / "application.db"
+    )
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    with pytest.raises(
+        ApplicationNotFoundError,
+        match=str(application.id),
+    ):
+        repository.save(application)
