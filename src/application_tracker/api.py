@@ -38,6 +38,8 @@ class ApplicationResponse(BaseModel):
     follow_up_at: datetime | None
     status_history: list[ApplicationStatusChangeResponse]
 
+class FollowUpScheduleRequest(BaseModel):
+    follow_up_at: datetime
 
 def _to_response(
         application: Application,
@@ -143,6 +145,57 @@ def create_app(
         except ValueError as error:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
+                detail=str(error),
+            ) from error
+
+        return _to_response(application)
+
+    @app.put(
+        "/applications/{application_id}/follow-up",
+        response_model=ApplicationResponse,
+    )
+    def schedule_application_follow_up(
+            application_id: UUID,
+            request: FollowUpScheduleRequest,
+    ) -> ApplicationResponse:
+        try:
+            application = (
+                service.schedule_application_follow_up(
+                    application_id=application_id,
+                    follow_up_at=request.follow_up_at,
+                )
+            )
+        except ApplicationNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+        except ValueError as error:
+            raise HTTPException(
+                status_code=(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT
+                ),
+                detail=str(error),
+            ) from error
+
+        return _to_response(application)
+
+    @app.delete(
+        "/applications/{application_id}/follow-up",
+        response_model=ApplicationResponse,
+    )
+    def clear_application_follow_up(
+            application_id: UUID,
+    ) -> ApplicationResponse:
+        try:
+            application = (
+                service.clear_application_follow_up(
+                    application_id=application_id,
+                )
+            )
+        except ApplicationNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail=str(error),
             ) from error
 

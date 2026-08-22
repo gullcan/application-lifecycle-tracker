@@ -220,4 +220,108 @@ def test_change_status_rejects_unknown_status() -> None:
     assert repository.get(
         application.id
     ).status is ApplicationStatus.DRAFT
-    
+
+def test_schedule_follow_up_returns_updated_application() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    repository.add(application)
+    client = TestClient(create_app(repository))
+    follow_up_at = datetime.fromisoformat(
+        "2026-08-25T09:00:00+00:00"
+    )
+
+    response = client.put(
+        f"/applications/{application.id}/follow-up",
+        json={
+            "follow_up_at": follow_up_at.isoformat(),
+        },
+    )
+
+    assert response.status_code == 200
+    assert datetime.fromisoformat(
+        response.json()["follow_up_at"]
+    ) == follow_up_at
+    assert repository.get(
+        application.id
+    ).follow_up_at == follow_up_at
+
+
+def test_clear_follow_up_returns_updated_application() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        follow_up_at=datetime.fromisoformat(
+            "2026-08-25T09:00:00+00:00"
+        ),
+    )
+    repository.add(application)
+    client = TestClient(create_app(repository))
+
+    response = client.delete(
+        f"/applications/{application.id}/follow-up"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["follow_up_at"] is None
+    assert repository.get(
+        application.id
+    ).follow_up_at is None
+
+
+def test_schedule_follow_up_returns_404_for_unknown_application() -> None:
+    repository = InMemoryApplicationRepository()
+    client = TestClient(create_app(repository))
+    unknown_id = uuid4()
+
+    response = client.put(
+        f"/applications/{unknown_id}/follow-up",
+        json={
+            "follow_up_at": "2026-08-25T09:00:00+00:00",
+        },
+    )
+
+    assert response.status_code == 404
+    assert str(unknown_id) in response.json()["detail"]
+
+
+def test_clear_follow_up_returns_404_for_unknown_application() -> None:
+    repository = InMemoryApplicationRepository()
+    client = TestClient(create_app(repository))
+    unknown_id = uuid4()
+
+    response = client.delete(
+        f"/applications/{unknown_id}/follow-up"
+    )
+
+    assert response.status_code == 404
+    assert str(unknown_id) in response.json()["detail"]
+
+
+def test_schedule_follow_up_rejects_naive_datetime() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    repository.add(application)
+    client = TestClient(create_app(repository))
+
+    response = client.put(
+        f"/applications/{application.id}/follow-up",
+        json={
+            "follow_up_at": "2026-08-25T09:00:00",
+        },
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["detail"]
+        == "follow_up_at must be timezone-aware"
+    )
+    assert repository.get(
+        application.id
+    ).follow_up_at is None
