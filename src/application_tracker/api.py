@@ -21,6 +21,13 @@ class ApplicationCreateRequest(BaseModel):
     status: ApplicationStatus = ApplicationStatus.DRAFT
     follow_up_at: datetime | None = None
 
+class ApplicationStatusChangeResponse(BaseModel):
+    previous_status: ApplicationStatus
+    new_status: ApplicationStatus
+    changed_at: datetime
+
+class ApplicationStatusUpdateRequest(BaseModel):
+    status: ApplicationStatus
 
 class ApplicationResponse(BaseModel):
     id: UUID
@@ -29,6 +36,7 @@ class ApplicationResponse(BaseModel):
     status: ApplicationStatus
     created_at: datetime
     follow_up_at: datetime | None
+    status_history: list[ApplicationStatusChangeResponse]
 
 
 def _to_response(
@@ -41,6 +49,15 @@ def _to_response(
         status=application.status,
         created_at=application.created_at,
         follow_up_at=application.follow_up_at,
+        status_history=[
+            ApplicationStatusChangeResponse(
+                previous_status=change.previous_status,
+                new_status=change.new_status,
+                changed_at=change.changed_at,
+            )
+            for change in application.status_history
+        ],
+        
     )
 
 
@@ -100,6 +117,32 @@ def create_app(
         except ApplicationNotFoundError as error:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+
+        return _to_response(application)
+
+    @app.patch(
+        "/applications/{application_id}/status",
+        response_model=ApplicationResponse,
+    )
+    def change_application_status(
+            application_id: UUID,
+            request: ApplicationStatusUpdateRequest,
+    ) -> ApplicationResponse:
+        try:
+            application = service.change_application_status(
+                application_id=application_id,
+                new_status=request.status,
+            )
+        except ApplicationNotFoundError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(error),
+            ) from error
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
                 detail=str(error),
             ) from error
 

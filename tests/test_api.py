@@ -131,4 +131,93 @@ def test_list_applications_support_status_filter() -> None:
         item["id"]
         for item in filtered_response.json()
     ] == [str(interview.id)]
+
+
+def test_change_status_returns_updated_application() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    repository.add(application)
+    client = TestClient(create_app(repository))
+
+    response = client.patch(
+        f"/applications/{application.id}/status",
+        json={"status": "screening"},
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["status"] == "screening"
+    assert body["status_history"] == [
+        {
+            "previous_status": "applied",
+            "new_status": "screening",
+            "changed_at": body["status_history"][0]["changed_at"],
+        }
+    ]
+
+    stored = repository.get(application.id)
+
+    assert stored.status is ApplicationStatus.SCREENING
+    assert len(stored.status_history) == 1
+
+
+def test_change_status_returns_404_for_unknown_application() -> None:
+    repository = InMemoryApplicationRepository()
+    client = TestClient(create_app(repository))
+    unknown_id = uuid4()
+
+    response = client.patch(
+        f"/applications/{unknown_id}/status",
+        json={"status": "screening"},
+    )
+
+    assert response.status_code == 404
+    assert str(unknown_id) in response.json()["detail"]
+
+
+def test_change_status_returns_409_for_invalid_transition() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    repository.add(application)
+    client = TestClient(create_app(repository))
+
+    response = client.patch(
+        f"/applications/{application.id}/status",
+        json={"status": "applied"},
+    )
+
+    assert response.status_code == 409
+    assert (
+        response.json()["detail"]
+        == "new status must be different from current status"
+    )
+
+
+def test_change_status_rejects_unknown_status() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+    )
+    repository.add(application)
+    client = TestClient(create_app(repository))
+
+    response = client.patch(
+        f"/applications/{application.id}/status",
+        json={"status": "hired"},
+    )
+
+    assert response.status_code == 422
+    assert repository.get(
+        application.id
+    ).status is ApplicationStatus.DRAFT
     
