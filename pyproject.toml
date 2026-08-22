@@ -4,10 +4,13 @@ version = "0.1.0"
 description = "Track job applications, lifecycle transitions, and follow-up schedules."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.141.1",
+]
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.12.0",
     "pytest>=9.1.1",
 ]
 [build-system]
