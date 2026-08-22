@@ -93,4 +93,8 @@ class ApplicationService:
             as_of
         )
 
-    
+    def get_application(
+            self,
+            application_id: UUID,
+    ) -> Application:
+        return self._repository.get(application_id)
