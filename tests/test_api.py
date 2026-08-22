@@ -325,3 +325,17 @@ def test_schedule_follow_up_rejects_naive_datetime() -> None:
     assert repository.get(
         application.id
     ).follow_up_at is None
+
+def test_health_returns_ok() -> None:
+    client = TestClient(
+        create_app(
+            InMemoryApplicationRepository()
+        )
+    )
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+    }

@@ -41,6 +41,9 @@ class ApplicationResponse(BaseModel):
 class FollowUpScheduleRequest(BaseModel):
     follow_up_at: datetime
 
+class HealthResponse(BaseModel):
+    status: str
+
 def _to_response(
         application: Application,
 ) -> ApplicationResponse:
@@ -200,6 +203,13 @@ def create_app(
             ) from error
 
         return _to_response(application)
+
+    @app.get(
+        "/health",
+        response_model=HealthResponse,
+    )
+    def health() -> HealthResponse:
+        return HealthResponse(status="ok")
     
     return app
 
