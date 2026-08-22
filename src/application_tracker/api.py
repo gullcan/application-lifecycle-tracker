@@ -2,7 +2,6 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel
 
 from application_tracker.domain.models import (
     Application,
@@ -14,12 +13,27 @@ from application_tracker.repositories import (
 )
 from application_tracker.services import ApplicationService
 
+from typing import Annotated
+
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    StringConstraints,
+)
+
+NonBlankString = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+    ),
+]
 
 class ApplicationCreateRequest(BaseModel):
-    company_name: str
-    job_title: str
+    company_name: NonBlankString
+    job_title: NonBlankString
     status: ApplicationStatus = ApplicationStatus.DRAFT
-    follow_up_at: datetime | None = None
+    follow_up_at: AwareDatetime | None = None
 
 class ApplicationStatusChangeResponse(BaseModel):
     previous_status: ApplicationStatus
@@ -39,7 +53,7 @@ class ApplicationResponse(BaseModel):
     status_history: list[ApplicationStatusChangeResponse]
 
 class FollowUpScheduleRequest(BaseModel):
-    follow_up_at: datetime
+    follow_up_at: AwareDatetime
 
 class HealthResponse(BaseModel):
     status: str

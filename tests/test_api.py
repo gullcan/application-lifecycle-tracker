@@ -12,6 +12,56 @@ from application_tracker.domain.models import (
 from application_tracker.repositories import (
     InMemoryApplicationRepository,
 )
+import pytest
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("company_name", "   "),
+        ("job_title", "   "),
+    ],
+)
+def test_create_application_rejects_blank_required_field(
+    field_name: str,
+    field_value: str,
+) -> None:
+    repository = InMemoryApplicationRepository()
+    client = TestClient(create_app(repository))
+    request_body = {
+        "company_name": "OpenAI",
+        "job_title": "Backend Engineer",
+    }
+    request_body[field_name] = field_value
+
+    response = client.post(
+        "/applications",
+        json=request_body,
+    )
+
+    assert response.status_code == 422
+    assert repository.list_all() == []
+
+
+def test_create_application_rejects_naive_follow_up_datetime(
+) -> None:
+    repository = InMemoryApplicationRepository()
+    client = TestClient(create_app(repository))
+
+    response = client.post(
+        "/applications",
+        json={
+            "company_name": "OpenAI",
+            "job_title": "Backend Engineer",
+            "follow_up_at": "2026-08-25T09:00:00",
+        },
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["detail"][0]["loc"]
+        == ["body", "follow_up_at"]
+    )
+    assert repository.list_all() == []
 
 
 def test_create_application_returns_created_application() -> None:
@@ -319,8 +369,8 @@ def test_schedule_follow_up_rejects_naive_datetime() -> None:
 
     assert response.status_code == 422
     assert (
-        response.json()["detail"]
-        == "follow_up_at must be timezone-aware"
+        response.json()["detail"][0]["loc"]
+        == ["body", "follow_up_at"]
     )
     assert repository.get(
         application.id
