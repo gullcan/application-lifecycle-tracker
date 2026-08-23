@@ -15,6 +15,11 @@ from application_tracker.repositories import (
 from application_tracker.sqlite_repository import (
     SQLiteApplicationRepository,
 )
+import sqlite3
+
+from application_tracker.migrations import (
+    CURRENT_SCHEMA_VERSION,
+)
 
 def test_sqlite_repository_persists_application_across_instances(
         tmp_path: Path,
@@ -263,3 +268,85 @@ def test_sqlite_repository_paginates_applications(
         application.id
         for application in page
     ] == [all_applications[1].id]
+
+def test_sqlite_repository_applies_current_schema_version(
+        tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "applications.db"
+
+    SQLiteApplicationRepository(database_path)
+
+    connection = sqlite3.connect(database_path)
+
+    try:
+        schema_version = connection.execute(
+            "PRAGMA user_version"
+        ).fetchone()[0]
+    finally:
+        connection.close()
+
+    assert schema_version == CURRENT_SCHEMA_VERSION
+
+def test_sqlite_repository_upgrades_legacy_database_without_data_loss(
+        tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "applications.db"
+    application_id = uuid4()
+    created_at = datetime(
+        2026,
+        8,
+        23,
+        9,
+        tzinfo=UTC,
+    )
+
+    connection = sqlite3.connect(database_path)
+
+    try:
+        connection.execute(
+            """
+            CREATE TABLE applications (
+                id TEXT PRIMARY KEY,
+                company_name TEXT NOT NULL,
+                job_title TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                follow_up_at TEXT
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO applications (
+                id,
+                company_name,
+                job_title,
+                status,
+                created_at,
+                follow_up_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(application_id),
+                "OpenAI",
+                "Backend Engineer",
+                "applied",
+                created_at.isoformat(),
+                None,
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    repository = SQLiteApplicationRepository(
+        database_path
+    )
+    restored = repository.get(application_id)
+
+    assert restored.id == application_id
+    assert restored.company_name == "OpenAI"
+    assert restored.job_title == "Backend Engineer"
+    assert restored.status is ApplicationStatus.APPLIED
+    assert restored.created_at == created_at
