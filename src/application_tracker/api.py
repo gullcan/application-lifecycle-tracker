@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException,Query, Request, status
+from fastapi import FastAPI, HTTPException,Query, Request, Response, status
 
 from fastapi.responses import JSONResponse
 
@@ -23,6 +23,10 @@ from pydantic import (
     StringConstraints,
 )
 
+import logging
+from collections.abc import Awaitable, Callable
+from time import perf_counter
+
 NonBlankString = Annotated[
     str,
     StringConstraints(
@@ -30,6 +34,7 @@ NonBlankString = Annotated[
         min_length=1,
     ),
 ]
+logger = logging.getLogger(__name__)
 
 class ApplicationCreateRequest(BaseModel):
     company_name: NonBlankString
@@ -90,6 +95,54 @@ def create_app(
         version="0.1.0",
     )
     service = ApplicationService(repository)
+
+    @app.middleware("http")
+    async def log_http_request(
+        request: Request,
+        call_next: Callable[
+            [Request],
+            Awaitable[Response],
+        ],
+    ) -> Response:
+        started_at = perf_counter()
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration_ms = round(
+                (perf_counter() - started_at) * 1000,
+                2,
+            )
+
+            logger.exception(
+                "HTTP request failed",
+                extra={
+                    "http_method": request.method,
+                    "path": request.url.path,
+                    "status_code": 500,
+                    "duration_ms": duration_ms,
+                },
+            )
+            raise
+
+        duration_ms = round(
+            (perf_counter() - started_at) * 1000,
+            2,
+        )
+
+        logger.info(
+            "HTTP request completed",
+            extra={
+                "http_method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+            },
+        )
+
+        return response
+
+
 
     @app.exception_handler(
         ApplicationNotFoundError

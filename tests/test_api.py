@@ -1,6 +1,8 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+import logging
+
 from fastapi.testclient import TestClient
 
 from application_tracker.api import create_app
@@ -577,3 +579,71 @@ def test_list_applications_rejects_invalid_pagination(
     )
 
     assert response.status_code == 422
+
+def test_health_request_records_log_context(
+        caplog: pytest.LogCaptureFixture,
+) -> None:
+    repository = InMemoryApplicationRepository()
+    client = TestClient(create_app(repository))
+
+    with caplog.at_level(
+        logging.INFO,
+        logger="application_tracker.api",
+    ):
+        response = client.get("/health")
+
+    request_records = [
+        record
+        for record in caplog.records
+        if record.getMessage()
+        == "HTTP request completed"
+    ]
+
+    assert response.status_code == 200
+    assert len(request_records) == 1
+
+    record = request_records[0]
+
+    assert record.http_method == "GET"
+    assert record.path == "/health"
+    assert record.status_code == 200
+    assert record.duration_ms >= 0
+
+def test_unhandled_error_records_log_context(
+        caplog: pytest.LogCaptureFixture,
+) -> None:
+    repository = InMemoryApplicationRepository()
+    app = create_app(repository)
+
+    @app.get("/test/failure")
+    def fail() -> None:
+        raise RuntimeError("unexpected failure")
+
+    client = TestClient(
+        app,
+        raise_server_exceptions=False,
+    )
+
+    with caplog.at_level(
+        logging.ERROR,
+        logger="application_tracker.api",
+    ):
+        response = client.get("/test/failure")
+
+    failure_records = [
+        record
+        for record in caplog.records
+        if record.getMessage()
+        == "HTTP request failed"
+    ]
+
+    assert response.status_code == 500
+    assert len(failure_records) == 1
+
+    record = failure_records[0]
+
+    assert record.http_method == "GET"
+    assert record.path == "/test/failure"
+    assert record.status_code == 500
+    assert record.duration_ms >= 0
+    assert record.exc_info is not None
