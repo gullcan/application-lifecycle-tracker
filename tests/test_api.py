@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -389,3 +389,89 @@ def test_health_returns_ok() -> None:
     assert response.json() == {
         "status": "ok",
     }
+
+
+def test_list_applications_needing_follow_up(
+) -> None:
+    repository = InMemoryApplicationRepository()
+    as_of = datetime(
+        2026,
+        8,
+        25,
+        9,
+        tzinfo=UTC,
+    )
+
+    due_application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.SCREENING,
+        follow_up_at=datetime(
+            2026,
+            8,
+            24,
+            9,
+            tzinfo=UTC,
+        ),
+    )
+    future_application = Application(
+        company_name="Anthropic",
+        job_title="Python Engineer",
+        status=ApplicationStatus.INTERVIEW,
+        follow_up_at=datetime(
+            2026,
+            8,
+            26,
+            9,
+            tzinfo=UTC,
+        ),
+    )
+    terminal_application = Application(
+        company_name="GitHub",
+        job_title="Platform Engineer",
+        status=ApplicationStatus.REJECTED,
+        follow_up_at=datetime(
+            2026,
+            8,
+            23,
+            9,
+            tzinfo=UTC,
+        ),
+    )
+
+    repository.add(due_application)
+    repository.add(future_application)
+    repository.add(terminal_application)
+    client = TestClient(create_app(repository))
+
+    response = client.get(
+        "/applications/follow-ups",
+        params={
+            "as_of": as_of.isoformat(),
+        },
+    )
+
+    assert response.status_code == 200, response.json()
+    assert [
+        item["id"]
+        for item in response.json()
+    ] == [str(due_application.id)]
+
+
+def test_follow_up_query_rejects_naive_as_of(
+) -> None:
+    repository = InMemoryApplicationRepository()
+    client = TestClient(create_app(repository))
+
+    response = client.get(
+        "/applications/follow-ups",
+        params={
+            "as_of": "2026-08-25T09:00:00",
+        },
+    )
+
+    assert response.status_code == 422
+    assert (
+        response.json()["detail"][0]["loc"]
+        == ["query", "as_of"]
+    )

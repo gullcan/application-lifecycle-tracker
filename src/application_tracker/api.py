@@ -123,6 +123,24 @@ def create_app(
         ]
 
     @app.get(
+        "/applications/follow-ups",
+        response_model=list[ApplicationResponse],
+    )
+    def list_applications_needing_follow_up(
+        as_of: AwareDatetime,
+    ) -> list[ApplicationResponse]:
+        applications = (
+            service.list_applications_needing_follow_up(
+                as_of=as_of,
+            )
+        )
+
+        return [
+            _to_response(application)
+            for application in applications
+        ]
+
+    @app.get(
         "/applications/{application_id}",
         response_model=ApplicationResponse,
     )
