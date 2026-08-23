@@ -5,23 +5,29 @@ import {
   listApplicationsNeedingFollowUp,
 } from './api/applications'
 import { getHealth } from './api/health'
-import { ApplicationForm } from './components/ApplicationForm'
-import type { Application } from './types/application'
 import {
+  ApplicationFollowUpControl,
+} from './components/ApplicationFollowUpControl'
+import { ApplicationForm } from './components/ApplicationForm'
+import {
+  ApplicationStatusControl,
+} from './components/ApplicationStatusControl'
+import type {
+  Application,
+  ApplicationStatus,
+} from './types/application'
+import {
+  applicationStatuses,
+  applicationStatusLabels,
   terminalApplicationStatuses,
 } from './types/application'
 import './App.css'
 
-import {
-  ApplicationStatusControl,
-} from './components/ApplicationStatusControl'
-
-import {
-  ApplicationFollowUpControl,
-} from './components/ApplicationFollowUpControl'
-
 type ApiState = 'checking' | 'online' | 'offline'
 type DataState = 'loading' | 'ready' | 'error'
+type StatusFilter = ApplicationStatus | 'all'
+
+const PAGE_SIZE = 10
 
 const apiStateLabels: Record<ApiState, string> = {
   checking: 'Kontrol ediliyor',
@@ -54,10 +60,17 @@ function App() {
     useState<DataState>('loading')
   const [applications, setApplications] =
     useState<Application[]>([])
+  const [visibleApplications, setVisibleApplications] =
+    useState<Application[]>([])
   const [followUpCount, setFollowUpCount] =
     useState(0)
   const [dashboardVersion, setDashboardVersion] =
     useState(0)
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>('all')
+  const [page, setPage] = useState(0)
+  const [hasNextPage, setHasNextPage] =
+    useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -95,17 +108,45 @@ function App() {
 
     async function loadDashboard(): Promise<void> {
       try {
-        const [applicationResults, followUpResults] =
-          await Promise.all([
-            listApplications(controller.signal),
-            listApplicationsNeedingFollowUp(
-              new Date(),
-              controller.signal,
-            ),
-          ])
+        const pageRequest =
+          statusFilter === 'all'
+            ? listApplications({
+                limit: PAGE_SIZE + 1,
+                offset: page * PAGE_SIZE,
+                signal: controller.signal,
+              })
+            : listApplications({
+                status: statusFilter,
+                limit: PAGE_SIZE + 1,
+                offset: page * PAGE_SIZE,
+                signal: controller.signal,
+              })
 
-        setApplications(applicationResults)
+        const [
+          summaryResults,
+          followUpResults,
+          pageResults,
+        ] = await Promise.all([
+          listApplications({
+            limit: 100,
+            offset: 0,
+            signal: controller.signal,
+          }),
+          listApplicationsNeedingFollowUp(
+            new Date(),
+            controller.signal,
+          ),
+          pageRequest,
+        ])
+
+        setApplications(summaryResults)
         setFollowUpCount(followUpResults.length)
+        setVisibleApplications(
+          pageResults.slice(0, PAGE_SIZE),
+        )
+        setHasNextPage(
+          pageResults.length > PAGE_SIZE,
+        )
         setDataState('ready')
       } catch (error) {
         if (!isAbortError(error)) {
@@ -119,7 +160,7 @@ function App() {
     return () => {
       controller.abort()
     }
-  }, [dashboardVersion])
+  }, [dashboardVersion, page, statusFilter])
 
   const activeApplicationCount = applications.filter(
     (application) =>
@@ -209,6 +250,82 @@ function App() {
               <p className="eyebrow">Başvurular</p>
               <h2>Güncel süreçler</h2>
             </div>
+
+            <div className="application-list-controls">
+              <label className="status-filter">
+                <span>Duruma göre filtrele</span>
+
+                <select
+                  value={statusFilter}
+                  disabled={dataState === 'loading'}
+                  onChange={(event) => {
+                    setDataState('loading')
+                    setStatusFilter(
+                      event.target.value as StatusFilter,
+                    )
+                    setPage(0)
+                  }}
+                >
+                  <option value="all">
+                    Tüm durumlar
+                  </option>
+
+                  {applicationStatuses.map(
+                    (applicationStatus) => (
+                      <option
+                        key={applicationStatus}
+                        value={applicationStatus}
+                      >
+                        {
+                          applicationStatusLabels[
+                            applicationStatus
+                          ]
+                        }
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+
+              <div
+                className="pagination-controls"
+                aria-label="Sayfalama"
+              >
+                <button
+                  type="button"
+                  disabled={
+                    page === 0 ||
+                    dataState === 'loading'
+                  }
+                  onClick={() => {
+                    setDataState('loading')
+                    setPage(
+                      (currentPage) => currentPage - 1,
+                    )
+                  }}
+                >
+                  Önceki
+                </button>
+
+                <span>Sayfa {page + 1}</span>
+
+                <button
+                  type="button"
+                  disabled={
+                    !hasNextPage ||
+                    dataState === 'loading'
+                  }
+                  onClick={() => {
+                    setDataState('loading')
+                    setPage(
+                      (currentPage) => currentPage + 1,
+                    )
+                  }}
+                >
+                  Sonraki
+                </button>
+              </div>
+            </div>
           </div>
 
           {dataState === 'loading' && (
@@ -228,18 +345,23 @@ function App() {
           )}
 
           {dataState === 'ready' &&
-            applications.length === 0 && (
+            visibleApplications.length === 0 && (
               <div className="empty-state">
-                <h3>Henüz başvuru bulunmuyor</h3>
+                <h3>
+                  {statusFilter === 'all'
+                    ? 'Henüz başvuru bulunmuyor'
+                    : 'Bu durumda başvuru bulunmuyor'}
+                </h3>
                 <p>
-                  Yukarıdaki formu kullanarak ilk başvurunu
-                  ekleyebilirsin.
+                  {statusFilter === 'all'
+                    ? 'Yukarıdaki formu kullanarak ilk başvurunu ekleyebilirsin.'
+                    : 'Başka bir durum filtresi seçebilirsin.'}
                 </p>
               </div>
             )}
 
           {dataState === 'ready' &&
-            applications.length > 0 && (
+            visibleApplications.length > 0 && (
               <div className="table-wrapper">
                 <table>
                   <thead>
@@ -251,35 +373,37 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {applications.map((application) => (
-                      <tr key={application.id}>
-                        <td>
-                          <strong>
-                            {application.company_name}
-                          </strong>
-                          <span>
-                            {application.job_title}
-                          </span>
-                        </td>
-                        <td>
-                          <ApplicationStatusControl
-                            application={application}
-                            onUpdated={refreshDashboard}
-                          />
-                        </td>
+                    {visibleApplications.map(
+                      (application) => (
+                        <tr key={application.id}>
                           <td>
-                          <ApplicationFollowUpControl
-                            application={application}
-                            onUpdated={refreshDashboard}
-                          />
-                        </td>
-                        <td>
-                          {formatDate(
-                            application.created_at,
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                            <strong>
+                              {application.company_name}
+                            </strong>
+                            <span>
+                              {application.job_title}
+                            </span>
+                          </td>
+                          <td>
+                            <ApplicationStatusControl
+                              application={application}
+                              onUpdated={refreshDashboard}
+                            />
+                          </td>
+                          <td>
+                            <ApplicationFollowUpControl
+                              application={application}
+                              onUpdated={refreshDashboard}
+                            />
+                          </td>
+                          <td>
+                            {formatDate(
+                              application.created_at,
+                            )}
+                          </td>
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -5,11 +5,30 @@ import type {
 } from '../types/application'
 import { apiRequest } from './client'
 
-export function listApplications(
-  signal?: AbortSignal,
-): Promise<Application[]> {
+interface ListApplicationsOptions {
+  status?: ApplicationStatus
+  limit?: number
+  offset?: number
+  signal?: AbortSignal
+}
+
+export function listApplications({
+  status,
+  limit = 100,
+  offset = 0,
+  signal,
+}: ListApplicationsOptions = {}): Promise<Application[]> {
+  const parameters = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  })
+
+  if (status !== undefined) {
+    parameters.set('status', status)
+  }
+
   return apiRequest<Application[]>(
-    '/applications?limit=100&offset=0',
+    `/applications?${parameters.toString()}`,
     { signal },
   )
 }
