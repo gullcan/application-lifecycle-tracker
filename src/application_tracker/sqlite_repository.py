@@ -14,6 +14,9 @@ from application_tracker.repositories import (
 from application_tracker.domain.validation import (
     require_timezone_aware,
 )
+from application_tracker.migrations import (
+    migrate_database,
+)
 
 class SQLiteApplicationRepository:
     def __init__(
@@ -21,7 +24,7 @@ class SQLiteApplicationRepository:
             database_path: str | Path,
     ) -> None:
         self._database_path = str(database_path)
-        self._create_schema()
+        self._migrate_schema()
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path)
@@ -29,38 +32,11 @@ class SQLiteApplicationRepository:
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
-    def _create_schema(self) -> None:
+    def _migrate_schema(self) -> None:
         connection = self._connect()
 
         try:
-            with connection:
-                connection.executescript(
-                    """
-                    CREATE TABLE IF NOT EXISTS applications(
-                        id TEXT PRIMARY KEY,
-                        company_name TEXT NOT NULL,
-                        job_title TEXT NOT NULL,
-                        status TEXT NOT NULL,
-                        created_at TEXT NOT NULL,
-                        follow_up_at TEXT
-                    );
-
-                    CREATE TABLE IF NOT EXISTS application_status_changes (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        application_id TEXT NOT NULL,
-                        sequence_number INTEGER NOT NULL,
-                        previous_status TEXT NOT NULL,
-                        new_status TEXT NOT NULL,
-                        changed_at TEXT NOT NULL,
-                        UNIQUE(application_id, sequence_number),
-                        FOREIGN KEY (application_id)
-                            REFERENCES applications(id)
-                            ON DELETE CASCADE
-                        );
-
-                    """
-                )
-
+            migrate_database(connection)
         finally:
             connection.close()
 
