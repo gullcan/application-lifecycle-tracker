@@ -1,7 +1,7 @@
 import pytest
 from application_tracker.domain.models import (
-    Application, 
-    ApplicationStatus, 
+    Application,
+    ApplicationStatus,
     ApplicationStatusChange,
 )
 from datetime import UTC, datetime, timedelta
@@ -134,12 +134,6 @@ def test_new_application_has_empty_status_history() -> None:
     )
     assert application.status_history == ()
 
-def test_successful_status_change_is_recorded() -> None:
-    application = Application(
-        company_name="OpenAI",
-        job_title="Backend Engineer",
-    )
-    assert application.status_history == ()
 
 def test_successful_status_change_is_recorded() -> None:
     application = Application(
@@ -398,7 +392,7 @@ def test_clearing_follow_up_is_idempotent() -> None:
 
     application.clear_follow_up()
     application.clear_follow_up()
-    
+
 
     assert application.follow_up_at is None
 
@@ -504,4 +498,4 @@ def test_restore_rejects_timezone_naive_status_history() -> None:
             created_at=datetime(2026, 8, 1, tzinfo=UTC),
             status_history=status_history,
         )
-        
+

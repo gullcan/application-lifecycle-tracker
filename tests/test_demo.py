@@ -15,4 +15,3 @@ def test_demo_shows_only_applications_needing_follow_up(
     assert "Anthropic | Python Engineer | interview" not in output
     assert "Github | Platform Engineer | rejected" not in output
 
-    

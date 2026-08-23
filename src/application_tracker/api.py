@@ -78,7 +78,7 @@ def _to_response(
             )
             for change in application.status_history
         ],
-        
+
     )
 
 
@@ -252,6 +252,6 @@ def create_app(
     )
     def health() -> HealthResponse:
         return HealthResponse(status="ok")
-    
+
     return app
 

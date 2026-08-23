@@ -33,7 +33,7 @@ class ApplicationService:
         )
         self._repository.add(application)
 
-        return application 
+        return application
 
     def change_application_status(
             self,
@@ -93,7 +93,7 @@ class ApplicationService:
             limit=limit,
             offset=offset,
         )
-    
+
 
     def list_applications_needing_follow_up(
             self,

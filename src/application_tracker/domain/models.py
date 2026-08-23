@@ -61,7 +61,7 @@ class Application:
 
         self._status = status
         self._status_history: list[ApplicationStatusChange] = []
-        self._follow_up_at = follow_up_at 
+        self._follow_up_at = follow_up_at
 
     @classmethod
     def restore( # restore() is a factory method.
@@ -102,7 +102,7 @@ class Application:
 
         return application
 
-        
+
     @property
     def id(self) -> UUID:
         return self._id
@@ -136,7 +136,7 @@ class Application:
             raise ValueError(
                 "new status must be different from current status"
             )
-        
+
 
         status_change = ApplicationStatusChange(
             previous_status=self._status,
@@ -151,10 +151,10 @@ class Application:
 
         if self._follow_up_at is None:
             return False
-        
+
         if self._status in TERMINAL_STATUSES:
             return False
-        
+
         return self._follow_up_at <= as_of
 
     @property

@@ -69,7 +69,7 @@ class InMemoryApplicationRepository:
             raise ApplicationNotFoundError(
                 f"application with id'{application_id}' was not found"
             ) from None
-                
+
     def list_all(
         self,
         *,
@@ -128,7 +128,7 @@ class InMemoryApplicationRepository:
             as_of: datetime,
     ) -> list[Application]:
         require_timezone_aware(as_of, "as_of")
-        
+
         return [
             application # Sonuç listesine hangi değerin ekleneceği.
             for application in self._applications.values() # Verinin nereden geldiği.

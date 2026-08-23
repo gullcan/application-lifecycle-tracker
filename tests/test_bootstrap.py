@@ -36,4 +36,3 @@ def test_sqlite_backed_api_persists_across_app_instances(
     assert get_response.status_code == 200
     assert get_response.json()["id"] == application_id
     assert get_response.json()["status"] == "applied"
-    

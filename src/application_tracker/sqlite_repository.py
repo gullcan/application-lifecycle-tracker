@@ -44,7 +44,7 @@ class SQLiteApplicationRepository:
                         created_at TEXT NOT NULL,
                         follow_up_at TEXT
                     );
-                    
+
                     CREATE TABLE IF NOT EXISTS application_status_changes (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         application_id TEXT NOT NULL,
@@ -55,8 +55,8 @@ class SQLiteApplicationRepository:
                         UNIQUE(application_id, sequence_number),
                         FOREIGN KEY (application_id)
                             REFERENCES applications(id)
-                            ON DELETE CASCADE               
-                    );
+                            ON DELETE CASCADE
+                        );
 
                     """
                 )
@@ -92,7 +92,7 @@ class SQLiteApplicationRepository:
                             application.follow_up_at.isoformat()
                             if application.follow_up_at is not None
                             else None
-                        ),                    
+                        ),
                     ),
                 )
 
@@ -106,7 +106,6 @@ class SQLiteApplicationRepository:
                         changed_at
                     )
                     VALUES (?, ?, ?, ?, ?)
-                        
                     """,
                     (
                         (
@@ -120,7 +119,7 @@ class SQLiteApplicationRepository:
                         in enumerate(application.status_history)
                     ),
                 )
-            
+
         except sqlite3.IntegrityError as error:
             raise DuplicateApplicationError(
                 f"application with id "
@@ -146,7 +145,7 @@ class SQLiteApplicationRepository:
                 FROM applications
                 WHERE id = ?
                 """,
-                (str(application_id),),   
+                (str(application_id),),
             ).fetchone()
 
             if application_row is None:
@@ -200,7 +199,7 @@ class SQLiteApplicationRepository:
             ),
             status_history=status_history,
         )
-    
+
     def list_all(
         self,
         *,
@@ -234,7 +233,7 @@ class SQLiteApplicationRepository:
             self.get(UUID(row["id"]))
             for row in rows
         ]
-    
+
     def find_by_status(
         self,
         status: ApplicationStatus,
@@ -288,12 +287,12 @@ class SQLiteApplicationRepository:
             for application in self.list_all()
             if application.needs_follow_up(as_of)
         ]
-            
+
 
     def save(self, application: Application) -> None:
         connection = self._connect()
 
-        try: 
+        try:
             with connection:
                 cursor = connection.execute(
                     """
@@ -355,6 +354,6 @@ class SQLiteApplicationRepository:
                         in enumerate(application.status_history)
                     ),
                 )
-            
+
         finally:
             connection.close()

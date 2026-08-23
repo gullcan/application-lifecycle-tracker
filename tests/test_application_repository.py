@@ -3,7 +3,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from application_tracker.domain.models import Application
 from application_tracker.repositories import (
     ApplicationNotFoundError,
     DuplicateApplicationError,

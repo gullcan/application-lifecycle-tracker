@@ -32,7 +32,7 @@ def main() -> None:
     )
 
     openai_application = service.create_application(
-        company_name="OpenAI", 
+        company_name="OpenAI",
         job_title="Backend Engineer",
         status=ApplicationStatus.APPLIED,
         follow_up_at=datetime(
@@ -74,7 +74,7 @@ def main() -> None:
     all_applications = service.list_applications()
     applications_needing_follow_up = (
         service.list_applications_needing_follow_up(
-            as_of=as_of,        
+            as_of=as_of,
         )
     )
 
@@ -90,7 +90,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    
-    
-        
-    
+
+
+

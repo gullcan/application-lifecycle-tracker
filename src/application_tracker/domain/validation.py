@@ -10,4 +10,3 @@ def require_timezone_aware(
         raise ValueError(
             f"{field_name} must be timezone-aware"
         )
-    
