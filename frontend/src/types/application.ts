@@ -1,12 +1,16 @@
+export const applicationStatuses = [
+  'draft',
+  'applied',
+  'screening',
+  'interview',
+  'offer',
+  'accepted',
+  'rejected',
+  'withdrawn',
+] as const
+
 export type ApplicationStatus =
-  | 'draft'
-  | 'applied'
-  | 'screening'
-  | 'interview'
-  | 'offer'
-  | 'accepted'
-  | 'rejected'
-  | 'withdrawn'
+  (typeof applicationStatuses)[number]
 
 export interface ApplicationStatusChange {
   previous_status: ApplicationStatus
@@ -22,6 +26,13 @@ export interface Application {
   created_at: string
   follow_up_at: string | null
   status_history: ApplicationStatusChange[]
+}
+
+export interface CreateApplicationInput {
+  company_name: string
+  job_title: string
+  status: ApplicationStatus
+  follow_up_at: string | null
 }
 
 export const applicationStatusLabels: Record<

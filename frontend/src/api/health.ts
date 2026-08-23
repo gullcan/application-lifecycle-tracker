@@ -9,6 +9,6 @@ export function getHealth(
 ): Promise<HealthResponse> {
   return apiRequest<HealthResponse>(
     '/health',
-    signal,
+    { signal },
   )
 }

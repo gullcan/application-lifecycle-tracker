@@ -1,4 +1,7 @@
-import type { Application } from '../types/application'
+import type {
+  Application,
+  CreateApplicationInput,
+} from '../types/application'
 import { apiRequest } from './client'
 
 export function listApplications(
@@ -6,7 +9,7 @@ export function listApplications(
 ): Promise<Application[]> {
   return apiRequest<Application[]>(
     '/applications?limit=100&offset=0',
-    signal,
+    { signal },
   )
 }
 
@@ -20,6 +23,18 @@ export function listApplicationsNeedingFollowUp(
 
   return apiRequest<Application[]>(
     `/applications/follow-ups?${parameters.toString()}`,
-    signal,
+    { signal },
+  )
+}
+
+export function createApplication(
+  input: CreateApplicationInput,
+): Promise<Application> {
+  return apiRequest<Application>(
+    '/applications',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
   )
 }

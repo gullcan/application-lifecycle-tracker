@@ -5,6 +5,7 @@ import {
   listApplicationsNeedingFollowUp,
 } from './api/applications'
 import { getHealth } from './api/health'
+import { ApplicationForm } from './components/ApplicationForm'
 import type { Application } from './types/application'
 import {
   applicationStatusLabels,
@@ -48,6 +49,8 @@ function App() {
     useState<Application[]>([])
   const [followUpCount, setFollowUpCount] =
     useState(0)
+  const [dashboardVersion, setDashboardVersion] =
+    useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -72,6 +75,13 @@ function App() {
       controller.abort()
     }
   }, [])
+
+  function handleApplicationCreated(): void {
+    setDataState('loading')
+    setDashboardVersion(
+      (currentVersion) => currentVersion + 1,
+    )
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -102,7 +112,7 @@ function App() {
     return () => {
       controller.abort()
     }
-  }, [])
+  }, [dashboardVersion])
 
   const activeApplicationCount = applications.filter(
     (application) =>
@@ -182,6 +192,10 @@ function App() {
           </article>
         </section>
 
+        <ApplicationForm
+          onCreated={handleApplicationCreated}
+        />
+
         <section className="applications-section">
           <div className="section-heading">
             <div>
@@ -211,8 +225,8 @@ function App() {
               <div className="empty-state">
                 <h3>Henüz başvuru bulunmuyor</h3>
                 <p>
-                  Sonraki adımda yeni başvuru formunu
-                  ekleyeceğiz.
+                  Yukarıdaki formu kullanarak ilk başvurunu
+                  ekleyebilirsin.
                 </p>
               </div>
             )}
