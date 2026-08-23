@@ -475,3 +475,105 @@ def test_follow_up_query_rejects_naive_as_of(
         response.json()["detail"][0]["loc"]
         == ["query", "as_of"]
     )
+
+
+def test_list_applications_supports_pagination(
+) -> None:
+    repository = InMemoryApplicationRepository()
+    applications = [
+        Application(
+            company_name="OpenAI",
+            job_title="Backend Engineer",
+        ),
+        Application(
+            company_name="Anthropic",
+            job_title="Python Engineer",
+        ),
+        Application(
+            company_name="GitHub",
+            job_title="Platform Engineer",
+        ),
+    ]
+
+    for application in applications:
+        repository.add(application)
+
+    client = TestClient(create_app(repository))
+
+    response = client.get(
+        "/applications",
+        params={
+            "limit": 2,
+            "offset": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    assert [
+        item["id"]
+        for item in response.json()
+    ] == [
+        str(application.id)
+        for application in applications[1:3]
+    ]
+
+def test_list_applications_combines_status_and_pagination(
+) -> None:
+    repository = InMemoryApplicationRepository()
+    first_applied = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+    interview = Application(
+        company_name="Anthropic",
+        job_title="Python Engineer",
+        status=ApplicationStatus.INTERVIEW,
+    )
+    second_applied = Application(
+        company_name="GitHub",
+        job_title="Platform Engineer",
+        status=ApplicationStatus.APPLIED,
+    )
+
+    repository.add(first_applied)
+    repository.add(interview)
+    repository.add(second_applied)
+    client = TestClient(create_app(repository))
+
+    response = client.get(
+        "/applications",
+        params={
+            "status": "applied",
+            "limit": 1,
+            "offset": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    assert [
+        item["id"]
+        for item in response.json()
+    ] == [str(second_applied.id)]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"limit": 0},
+        {"limit": 101},
+        {"offset": -1},
+    ],
+)
+def test_list_applications_rejects_invalid_pagination(
+    params: dict[str, int],
+) -> None:
+    repository = InMemoryApplicationRepository()
+    client = TestClient(create_app(repository))
+
+    response = client.get(
+        "/applications",
+        params=params,
+    )
+
+    assert response.status_code == 422

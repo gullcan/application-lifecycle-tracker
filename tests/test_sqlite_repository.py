@@ -232,3 +232,34 @@ def test_sqlite_repository_rejects_save_for_unknown_application(
         match=str(application.id),
     ):
         repository.save(application)
+
+def test_sqlite_repository_paginates_applications(
+    tmp_path: Path,
+) -> None:
+    repository = SQLiteApplicationRepository(
+        tmp_path / "applications.db"
+    )
+
+    for company_name in [
+        "OpenAI",
+        "Anthropic",
+        "GitHub",
+    ]:
+        repository.add(
+            Application(
+                company_name=company_name,
+                job_title="Backend Engineer",
+            )
+        )
+
+    all_applications = repository.list_all()
+
+    page = repository.list_all(
+        limit=1,
+        offset=1,
+    )
+
+    assert [
+        application.id
+        for application in page
+    ] == [all_applications[1].id]

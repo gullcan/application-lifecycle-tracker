@@ -19,12 +19,20 @@ class ApplicationRepository(Protocol):
     ) -> Application:
         ...      # Bu repository bir UUID almalı ve bir Application döndürmeli.
 
-    def list_all(self) -> list[Application]:
+    def list_all(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Application]:
         ...
 
     def find_by_status(
-            self,
-            status: ApplicationStatus,
+        self,
+        status: ApplicationStatus,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Application]:
         ...
 
@@ -62,21 +70,57 @@ class InMemoryApplicationRepository:
                 f"application with id'{application_id}' was not found"
             ) from None
                 
-    def list_all(self) -> list[Application]:
-        return list(self._applications.values())
+    def list_all(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Application]:
+        applications = sorted(
+            self._applications.values(),
+            key=lambda application: (
+                application.created_at,
+                str(application.id),
+            ),
+        )
+
+        if limit is None:
+            return applications[offset:]
+
+        return applications[
+            offset:offset + limit
+        ]
 
     def find_by_status(
-            self,
-            status: ApplicationStatus,
+        self,
+        status: ApplicationStatus,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Application]:
         if not isinstance(status, ApplicationStatus):
             raise TypeError(
                 "status must be an ApplicationStatus"
             )
-        return [
-            application
-            for application in self._applications.values()
-            if application.status is status
+
+        applications = sorted(
+            (
+                application
+                for application
+                in self._applications.values()
+                if application.status is status
+            ),
+            key=lambda application: (
+                application.created_at,
+                str(application.id),
+            ),
+        )
+
+        if limit is None:
+            return applications[offset:]
+
+        return applications[
+            offset:offset + limit
         ]
 
     def find_needing_follow_up(

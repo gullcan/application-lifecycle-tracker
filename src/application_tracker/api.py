@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException,Query, Request, status
 
 from fastapi.responses import JSONResponse
 
@@ -129,10 +129,21 @@ def create_app(
     )
     def list_applications(
         status: ApplicationStatus | None = None,
+        limit: Annotated[
+            int,
+            Query(ge=1, le=100),
+        ] = 50,
+        offset: Annotated[
+            int,
+            Query(ge=0),
+        ] = 0,
     ) -> list[ApplicationResponse]:
         applications = service.list_applications(
-            status=status
+            status=status,
+            limit=limit,
+            offset=offset,
         )
+
         return [
             _to_response(application)
             for application in applications

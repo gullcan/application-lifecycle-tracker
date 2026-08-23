@@ -76,13 +76,23 @@ class ApplicationService:
 
 
     def list_applications(
-            self,
-            status: ApplicationStatus | None = None, 
+        self,
+        status: ApplicationStatus | None = None,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Application]:
         if status is None:
-            return self._repository.list_all()
+            return self._repository.list_all(
+                limit=limit,
+                offset=offset,
+            )
 
-        return self._repository.find_by_status(status)
+        return self._repository.find_by_status(
+            status,
+            limit=limit,
+            offset=offset,
+        )
     
 
     def list_applications_needing_follow_up(

@@ -201,9 +201,18 @@ class SQLiteApplicationRepository:
             status_history=status_history,
         )
     
-
-    def list_all(self) -> list[Application]:
+    def list_all(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Application]:
         connection = self._connect()
+        effective_limit = (
+            -1
+            if limit is None
+            else limit
+        )
 
         try:
             rows = connection.execute(
@@ -211,7 +220,12 @@ class SQLiteApplicationRepository:
                 SELECT id
                 FROM applications
                 ORDER BY created_at, id
-                """
+                LIMIT ? OFFSET ?
+                """,
+                (
+                    effective_limit,
+                    offset,
+                ),
             ).fetchall()
         finally:
             connection.close()
@@ -220,10 +234,13 @@ class SQLiteApplicationRepository:
             self.get(UUID(row["id"]))
             for row in rows
         ]
-
+    
     def find_by_status(
-            self,
-            status: ApplicationStatus,
+        self,
+        status: ApplicationStatus,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> list[Application]:
         if not isinstance(status, ApplicationStatus):
             raise TypeError(
@@ -231,6 +248,11 @@ class SQLiteApplicationRepository:
             )
 
         connection = self._connect()
+        effective_limit = (
+            -1
+            if limit is None
+            else limit
+        )
 
         try:
             rows = connection.execute(
@@ -239,8 +261,13 @@ class SQLiteApplicationRepository:
                 FROM applications
                 WHERE status = ?
                 ORDER BY created_at, id
+                LIMIT ? OFFSET ?
                 """,
-                (status.value,),
+                (
+                    status.value,
+                    effective_limit,
+                    offset,
+                ),
             ).fetchall()
         finally:
             connection.close()
