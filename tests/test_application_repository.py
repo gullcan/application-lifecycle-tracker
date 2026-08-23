@@ -113,11 +113,12 @@ def test_repository_finds_applications_by_status() -> None:
 def test_status_filter_uses_current_application_status() -> None:
     repository = InMemoryApplicationRepository()
     application = Application(
-        company_name="=OpenAI",
+        company_name="OpenAI",
         job_title="Backend Engineer",
     )
     repository.add(application)
 
+    application.change_status(ApplicationStatus.APPLIED)
     application.change_status(ApplicationStatus.INTERVIEW)
 
     assert repository.find_by_status(

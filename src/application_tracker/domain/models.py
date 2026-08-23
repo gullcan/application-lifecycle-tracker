@@ -13,15 +13,62 @@ class ApplicationStatus(Enum):
     SCREENING = "screening"
     INTERVIEW = "interview"
     OFFER = "offer"
+    ACCEPTED = "accepted"
     REJECTED = "rejected"
     WITHDRAWN = "withdrawn"
 
 TERMINAL_STATUSES: frozenset[ApplicationStatus] = frozenset(
     {
+        ApplicationStatus.ACCEPTED,
         ApplicationStatus.REJECTED,
         ApplicationStatus.WITHDRAWN,
     }
 )
+ALLOWED_STATUS_TRANSITIONS: dict[
+    ApplicationStatus,
+    frozenset[ApplicationStatus],
+] = {
+    ApplicationStatus.DRAFT: frozenset(
+        {
+            ApplicationStatus.APPLIED,
+            ApplicationStatus.WITHDRAWN,
+        }
+    ),
+    ApplicationStatus.APPLIED: frozenset(
+        {
+            ApplicationStatus.SCREENING,
+            ApplicationStatus.INTERVIEW,
+            ApplicationStatus.OFFER,
+            ApplicationStatus.REJECTED,
+            ApplicationStatus.WITHDRAWN,
+        }
+    ),
+    ApplicationStatus.SCREENING: frozenset(
+        {
+            ApplicationStatus.INTERVIEW,
+            ApplicationStatus.OFFER,
+            ApplicationStatus.REJECTED,
+            ApplicationStatus.WITHDRAWN,
+        }
+    ),
+    ApplicationStatus.INTERVIEW: frozenset(
+        {
+            ApplicationStatus.OFFER,
+            ApplicationStatus.REJECTED,
+            ApplicationStatus.WITHDRAWN,
+        }
+    ),
+    ApplicationStatus.OFFER: frozenset(
+        {
+            ApplicationStatus.ACCEPTED,
+            ApplicationStatus.REJECTED,
+            ApplicationStatus.WITHDRAWN,
+        }
+    ),
+    ApplicationStatus.ACCEPTED: frozenset(),
+    ApplicationStatus.REJECTED: frozenset(),
+    ApplicationStatus.WITHDRAWN: frozenset(),
+}
 
 @dataclass(frozen=True)
 class ApplicationStatusChange:
@@ -137,12 +184,23 @@ class Application:
                 "new status must be different from current status"
             )
 
+        allowed_transitions = (
+            ALLOWED_STATUS_TRANSITIONS[self._status]
+        )
+
+        if new_status not in allowed_transitions:
+            raise ValueError(
+                f"cannot change status from "
+                f"'{self._status.value}' to "
+                f"'{new_status.value}'"
+            )
 
         status_change = ApplicationStatusChange(
             previous_status=self._status,
             new_status=new_status,
             changed_at=datetime.now(UTC),
         )
+
         self._status = new_status
         self._status_history.append(status_change)
 

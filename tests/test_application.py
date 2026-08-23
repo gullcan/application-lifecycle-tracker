@@ -80,6 +80,7 @@ def test_application_status_can_change() -> None:
 @pytest.mark.parametrize(
     "terminal_status",
     [
+        ApplicationStatus.ACCEPTED,
         ApplicationStatus.REJECTED,
         ApplicationStatus.WITHDRAWN,
     ],
@@ -261,6 +262,7 @@ def test_application_needs_follow_up_at_exact_deadline() -> None:
 @pytest.mark.parametrize(
     "terminal_status",
     [
+        ApplicationStatus.ACCEPTED,
         ApplicationStatus.REJECTED,
         ApplicationStatus.WITHDRAWN,
     ],
@@ -499,3 +501,102 @@ def test_restore_rejects_timezone_naive_status_history() -> None:
             status_history=status_history,
         )
 
+def test_application_status_includes_accepted_value() -> None:
+    status_values = {
+        status.value
+        for status in ApplicationStatus
+    }
+
+    assert "accepted" in status_values
+
+
+@pytest.mark.parametrize(
+    (
+        "current_status",
+        "new_status",
+    ),
+    [
+        (
+            ApplicationStatus.DRAFT,
+            ApplicationStatus.INTERVIEW,
+        ),
+        (
+            ApplicationStatus.SCREENING,
+            ApplicationStatus.APPLIED,
+        ),
+        (
+            ApplicationStatus.INTERVIEW,
+            ApplicationStatus.SCREENING,
+        ),
+        (
+            ApplicationStatus.OFFER,
+            ApplicationStatus.APPLIED,
+        ),
+    ],
+)
+def test_application_rejects_invalid_lifecycle_transition(
+        current_status: ApplicationStatus,
+        new_status: ApplicationStatus,
+) -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=current_status,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            f"cannot change status from "
+            f"'{current_status.value}' to "
+            f"'{new_status.value}'"
+        ),
+    ):
+        application.change_status(new_status)
+
+    assert application.status is current_status
+    assert application.status_history == ()
+
+
+@pytest.mark.parametrize(
+    (
+        "current_status",
+        "new_status",
+    ),
+    [
+        (
+            ApplicationStatus.APPLIED,
+            ApplicationStatus.INTERVIEW,
+        ),
+        (
+            ApplicationStatus.SCREENING,
+            ApplicationStatus.OFFER,
+        ),
+        (
+            ApplicationStatus.OFFER,
+            ApplicationStatus.ACCEPTED,
+        ),
+    ],
+)
+def test_application_allows_valid_lifecycle_transition(
+        current_status: ApplicationStatus,
+        new_status: ApplicationStatus,
+) -> None:
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=current_status,
+    )
+
+    application.change_status(new_status)
+
+    assert application.status is new_status
+    assert len(application.status_history) == 1
+    assert (
+        application.status_history[0].previous_status
+        is current_status
+    )
+    assert (
+        application.status_history[0].new_status
+        is new_status
+    )

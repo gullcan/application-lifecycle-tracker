@@ -647,3 +647,58 @@ def test_unhandled_error_records_log_context(
     assert record.status_code == 500
     assert record.duration_ms >= 0
     assert record.exc_info is not None
+
+def test_change_status_accepts_application_offer() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.OFFER,
+    )
+    repository.add(application)
+    client = TestClient(create_app(repository))
+
+    response = client.patch(
+        f"/applications/{application.id}/status",
+        json={
+            "status": "accepted",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "accepted"
+    assert response.json()["status_history"][-1][
+        "previous_status"
+    ] == "offer"
+    assert response.json()["status_history"][-1][
+        "new_status"
+    ] == "accepted"
+
+
+def test_change_status_rejects_backward_transition() -> None:
+    repository = InMemoryApplicationRepository()
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.INTERVIEW,
+    )
+    repository.add(application)
+    client = TestClient(create_app(repository))
+
+    response = client.patch(
+        f"/applications/{application.id}/status",
+        json={
+            "status": "applied",
+        },
+    )
+
+    assert response.status_code == 409
+    assert (
+        response.json()["detail"]
+        == (
+            "cannot change status from "
+            "'interview' to 'applied'"
+        )
+    )
+    assert application.status is ApplicationStatus.INTERVIEW
+    assert application.status_history == ()
