@@ -1,11 +1,12 @@
-import os
-
 from application_tracker.bootstrap import build_app
-
-
-database_path = os.getenv(
-    "APPLICATION_TRACKER_DATABASE_PATH",
-    "application_tracker.db",
+from application_tracker.config import Settings
+from application_tracker.logging_config import (
+    configure_logging,
 )
 
-app = build_app(database_path)
+
+settings = Settings.from_environment()
+
+configure_logging(settings.log_level)
+
+app = build_app(settings.database_path)
