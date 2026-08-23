@@ -350,3 +350,21 @@ def test_sqlite_repository_upgrades_legacy_database_without_data_loss(
     assert restored.job_title == "Backend Engineer"
     assert restored.status is ApplicationStatus.APPLIED
     assert restored.created_at == created_at
+
+def test_sqlite_repository_round_trips_accepted_status(
+        tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "applications.db"
+    writer = SQLiteApplicationRepository(database_path)
+    application = Application(
+        company_name="OpenAI",
+        job_title="Backend Engineer",
+        status=ApplicationStatus.ACCEPTED,
+    )
+
+    writer.add(application)
+
+    reader = SQLiteApplicationRepository(database_path)
+    restored = reader.get(application.id)
+
+    assert restored.status is ApplicationStatus.ACCEPTED
