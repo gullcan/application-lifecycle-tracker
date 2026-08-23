@@ -16,6 +16,10 @@ import {
   ApplicationStatusControl,
 } from './components/ApplicationStatusControl'
 
+import {
+  ApplicationFollowUpControl,
+} from './components/ApplicationFollowUpControl'
+
 type ApiState = 'checking' | 'online' | 'offline'
 type DataState = 'loading' | 'ready' | 'error'
 
@@ -263,12 +267,11 @@ function App() {
                             onUpdated={refreshDashboard}
                           />
                         </td>
-                        <td>
-                          {application.follow_up_at === null
-                            ? 'Planlanmadı'
-                            : formatDate(
-                                application.follow_up_at,
-                              )}
+                          <td>
+                          <ApplicationFollowUpControl
+                            application={application}
+                            onUpdated={refreshDashboard}
+                          />
                         </td>
                         <td>
                           {formatDate(

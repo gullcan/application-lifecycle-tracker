@@ -411,3 +411,72 @@ td:first-child span {
 .terminal-status small {
   color: #7b827d;
 }
+.follow-up-control {
+  display: grid;
+  gap: 8px;
+  min-width: 250px;
+}
+
+.follow-up-control input {
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid #ced7d0;
+  border-radius: 10px;
+  outline: none;
+  background: #f8faf8;
+  color: #26342b;
+}
+
+.follow-up-control input:focus {
+  border-color: #4c8961;
+  box-shadow: 0 0 0 3px rgba(76, 137, 97, 0.14);
+}
+
+.follow-up-control__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.follow-up-save-button,
+.follow-up-clear-button {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 0.76rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.follow-up-save-button {
+  border: 0;
+  background: #315d3f;
+  color: #ffffff;
+}
+
+.follow-up-clear-button {
+  border: 1px solid #d3dad4;
+  background: #ffffff;
+  color: #59635c;
+}
+
+.follow-up-save-button:disabled,
+.follow-up-clear-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.follow-up-control__error {
+  max-width: 250px;
+  color: #a13d3d;
+  line-height: 1.35;
+}
+
+.follow-up-terminal {
+  display: grid;
+  gap: 5px;
+  color: #59635c;
+}
+
+.follow-up-terminal small {
+  color: #858b87;
+}

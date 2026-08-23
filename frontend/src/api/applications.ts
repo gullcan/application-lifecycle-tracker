@@ -52,3 +52,29 @@ export function changeApplicationStatus(
     },
   )
 }
+
+export function scheduleApplicationFollowUp(
+  applicationId: string,
+  followUpAt: string,
+): Promise<Application> {
+  return apiRequest<Application>(
+    `/applications/${encodeURIComponent(applicationId)}/follow-up`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        follow_up_at: followUpAt,
+      }),
+    },
+  )
+}
+
+export function clearApplicationFollowUp(
+  applicationId: string,
+): Promise<Application> {
+  return apiRequest<Application>(
+    `/applications/${encodeURIComponent(applicationId)}/follow-up`,
+    {
+      method: 'DELETE',
+    },
+  )
+}
