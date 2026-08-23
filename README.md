@@ -21,19 +21,22 @@ Application Lifecycle Tracker models this workflow as explicit domain rules inst
 The project currently provides a persistent REST API with:
 
 - Job application creation and retrieval
-- Lifecycle status changes with immutable audit history
+- Explicit lifecycle transition rules with immutable audit history
+- Accepted, rejected, and withdrawn terminal outcomes
 - Terminal-status and duplicate-transition protection
 - Timezone-aware follow-up scheduling
 - Follow-up queries for applications requiring attention
 - Status filtering and limit/offset pagination
 - SQLite persistence across process restarts
+- Versioned and transactional SQLite schema migrations
 - Structured request and response validation
 - HTTP error mapping for validation, conflicts, and missing resources
 - Interactive OpenAPI documentation
 - A non-root Docker runtime
 - Persistent container storage through a named volume
 - Container health checks
-- Automated linting, testing, Compose validation, and image builds in CI
+- Environment-based runtime configuration and structured JSON logging
+- Automated linting, strict type checking, coverage enforcement, Compose validation, and image builds in CI
 
 ## Architecture
 
@@ -69,6 +72,8 @@ FastAPI translates HTTP requests into service calls and converts application res
 
 The repository protocol keeps persistence replaceable. Runtime composition selects SQLite, while unit tests and demonstrations can use the in-memory implementation.
 
+Detailed trade-offs are recorded in [Architecture Decisions](docs/architecture-decisions.md).
+
 ## Project structure
 
 ```text
@@ -76,13 +81,19 @@ The repository protocol keeps persistence replaceable. Runtime composition selec
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
+├── docs/
+│   ├── architecture-decisions.md
+│   └── deployment.md
 ├── src/
 │   └── application_tracker/
 │       ├── __init__.py
 │       ├── api.py
 │       ├── bootstrap.py
+│       ├── config.py
 │       ├── demo.py
+│       ├── logging_config.py
 │       ├── main.py
+│       ├── migrations.py
 │       ├── repositories.py
 │       ├── services.py
 │       ├── sqlite_repository.py
@@ -96,7 +107,10 @@ The repository protocol keeps persistence replaceable. Runtime composition selec
 │   ├── test_application_repository.py
 │   ├── test_application_service.py
 │   ├── test_bootstrap.py
+│   ├── test_config.py
 │   ├── test_demo.py
+│   ├── test_logging.py
+│   ├── test_migrations.py
 │   ├── test_sqlite_repository.py
 │   └── test_sqlite_service_integration.py
 ├── .dockerignore
@@ -150,6 +164,28 @@ APPLICATION_TRACKER_DATABASE_PATH=/path/to/applications.db \
 uv run uvicorn application_tracker.main:app
 ```
 
+The application log level defaults to `INFO` and can be configured with:
+
+```bash
+APPLICATION_TRACKER_LOG_LEVEL=DEBUG \
+uv run uvicorn application_tracker.main:app
+```
+
+Supported log levels are `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL`.
+
+## Lifecycle transitions
+
+| Current status | Allowed next statuses |
+|---|---|
+| `draft` | `applied`, `withdrawn` |
+| `applied` | `screening`, `interview`, `offer`, `rejected`, `withdrawn` |
+| `screening` | `interview`, `offer`, `rejected`, `withdrawn` |
+| `interview` | `offer`, `rejected`, `withdrawn` |
+| `offer` | `accepted`, `rejected`, `withdrawn` |
+| `accepted` | Terminal |
+| `rejected` | Terminal |
+| `withdrawn` | Terminal |
+
 ## Run with Docker Compose
 
 Build and start the API:
@@ -177,6 +213,8 @@ docker compose down
 ```
 
 SQLite data is stored in the named `application-data` volume and remains available when the container is removed and recreated.
+
+For platform requirements, persistence constraints, and smoke tests, see the [Deployment Contract](docs/deployment.md).
 
 ## API endpoints
 
@@ -217,6 +255,8 @@ The project began without a web framework or database so that business rules cou
 
 Status changes and follow-up operations are performed through domain methods instead of unrestricted attribute mutation. This keeps validation close to the state it protects.
 
+Lifecycle transitions are represented as an explicit policy. The model permits forward progress when hiring processes skip intermediate stages, rejects backward transitions, and closes accepted, rejected, or withdrawn applications as terminal outcomes.
+
 ### Status history
 
 Status transitions are stored as immutable history records. The current status can be queried directly while previous transitions remain available as an audit trail.
@@ -245,6 +285,10 @@ Creating a new application and restoring an existing application are separate li
 ### Transactional persistence
 
 An application and its status history are written within the same SQLite transaction. If one operation fails, the transaction is rolled back instead of leaving partially stored state.
+
+### Versioned schema migrations
+
+SQLite's `PRAGMA user_version` records the schema version inside the database file. Ordered migrations run transactionally during repository startup, preserve legacy data, and reject database versions newer than the application supports.
 
 ### Storage type conversion
 
@@ -277,6 +321,10 @@ Application code and runtime dependencies are installed into an immutable Docker
 
 SQLite data is written to `/data` and persisted independently through a named Docker volume. The API process runs as a dedicated non-root user.
 
+### Runtime configuration and observability
+
+Database location and log level are loaded from validated environment variables. HTTP middleware records successful and failed requests as structured JSON with method, path, status code, duration, and exception context without logging request bodies.
+
 ### Deterministic tests
 
 Time-dependent behavior receives an explicit reference time. Tests do not depend on the computer's current clock, making failures repeatable and easier to debug.
@@ -291,11 +339,22 @@ Run static analysis:
 uv run ruff check .
 ```
 
-Run the complete automated test suite:
+Run strict type checking:
 
 ```bash
-uv run pytest -q
+uv run mypy
 ```
+
+Run the complete automated test suite with branch coverage:
+
+```bash
+uv run pytest \
+  --cov=application_tracker \
+  --cov-report=term-missing \
+  -q
+```
+
+Coverage below 90% fails the quality check.
 
 Validate the Compose configuration:
 
@@ -309,14 +368,12 @@ Build the container image:
 docker build --tag application-lifecycle-tracker:local .
 ```
 
-GitHub Actions runs static analysis, automated tests, Compose validation, and the Docker image build for every push and pull request.
+GitHub Actions runs static analysis, strict type checking, coverage-enforced tests, Compose validation, and the Docker image build for every push and pull request.
 
 ## Roadmap
 
 Potential future improvements include:
 
-- Structured application logging
-- Explicit database migrations
 - PostgreSQL support
 - Authentication and user ownership
 - Deployment configuration

@@ -32,8 +32,15 @@ jobs:
       - name: Run static analysis
         run: uv run ruff check .
 
-      - name: Run tests
-        run: uv run pytest -q
+      - name: Run type checking
+        run: uv run mypy
+
+      - name: Run tests with coverage
+        run: >-
+          uv run pytest
+          --cov=application_tracker
+          --cov-report=term-missing
+          -q
 
       - name: Validate Compose configuration
         run: docker compose config --quiet
