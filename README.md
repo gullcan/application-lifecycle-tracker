@@ -1,6 +1,8 @@
 # Application Lifecycle Tracker
 
-A Python backend core for tracking job applications, lifecycle transitions, status history, and follow-up schedules.
+[![CI](https://github.com/gullcan/application-lifecycle-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/gullcan/application-lifecycle-tracker/actions/workflows/ci.yml)
+
+A production-aware Python backend API for tracking job applications, lifecycle transitions, status history, and follow-up schedules.
 
 ## Problem
 
@@ -14,81 +16,108 @@ Job seekers often manage applications across multiple platforms, emails, referra
 
 Application Lifecycle Tracker models this workflow as explicit domain rules instead of treating applications as simple CRUD records.
 
-## Current milestone
+## Current capabilities
 
-The second milestone adds SQLite persistence to the existing pure-Python domain and service layers.
+The project currently provides a persistent REST API with:
 
-Current capabilities include:
-
-- Creating job applications with validated company and job-title values
-- Representing lifecycle states with an enum
-- Enforcing valid status transitions
-- Preventing changes to terminal applications
-- Preserving status changes as an immutable audit history
-- Scheduling and clearing timezone-aware follow-ups
-- Finding active applications that require follow-up
-- Storing applications in memory or SQLite
-- Restoring application identity, timestamps, follow-ups, and status history
-- Persisting status and follow-up mutations
-- Exposing use cases through an application service
-- Running a deterministic demonstration scenario
-- Verifying domain, repository, service, and persistence behavior with automated tests
-
-SQLite persistence was added without changing the public domain and service APIs. No web framework has been introduced yet.
+- Job application creation and retrieval
+- Lifecycle status changes with immutable audit history
+- Terminal-status and duplicate-transition protection
+- Timezone-aware follow-up scheduling
+- Follow-up queries for applications requiring attention
+- Status filtering and limit/offset pagination
+- SQLite persistence across process restarts
+- Structured request and response validation
+- HTTP error mapping for validation, conflicts, and missing resources
+- Interactive OpenAPI documentation
+- A non-root Docker runtime
+- Persistent container storage through a named volume
+- Container health checks
+- Automated linting, testing, Compose validation, and image builds in CI
 
 ## Architecture
 
 ```text
-Demo / future API
-        |
-        v
+HTTP client
+    |
+    v
+FastAPI routes and schemas
+    |
+    v
 ApplicationService
-     |          |
-     v          v
-Domain      ApplicationRepository (Protocol)
-model               |
-             ┌──────┴──────┐
-             v             v
-        In-memory        SQLite
-        repository      repository
-                            |
-                            v
-                       SQLite database
+    |
+    +--------------------+
+    |                    |
+    v                    v
+Application domain   ApplicationRepository (Protocol)
+                         |
+                  +------+------+
+                  |             |
+                  v             v
+              In-memory       SQLite
+              repository     repository
+                                  |
+                                  v
+                           SQLite database
 ```
 
-The domain model owns business rules.
+The domain model owns business rules and protects application state.
 
-The service coordinates application use cases and persistence operations.
+The service layer coordinates application use cases without depending on HTTP or SQLite details.
 
-The repository protocol separates storage decisions from application behavior. Both in-memory and SQLite implementations satisfy the same repository contract.
+FastAPI translates HTTP requests into service calls and converts application results into response schemas.
+
+The repository protocol keeps persistence replaceable. Runtime composition selects SQLite, while unit tests and demonstrations can use the in-memory implementation.
 
 ## Project structure
 
 ```text
-src/application_tracker/
-├── __init__.py
-├── demo.py
-├── repositories.py
-├── services.py
-├── sqlite_repository.py
-└── domain/
-    ├── __init__.py
-    ├── models.py
-    └── validation.py
-
-tests/
-├── test_application.py
-├── test_application_repository.py
-├── test_application_service.py
-├── test_demo.py
-├── test_sqlite_repository.py
-└── test_sqlite_service_integration.py
+.
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── src/
+│   └── application_tracker/
+│       ├── __init__.py
+│       ├── api.py
+│       ├── bootstrap.py
+│       ├── demo.py
+│       ├── main.py
+│       ├── repositories.py
+│       ├── services.py
+│       ├── sqlite_repository.py
+│       └── domain/
+│           ├── __init__.py
+│           ├── models.py
+│           └── validation.py
+├── tests/
+│   ├── test_api.py
+│   ├── test_application.py
+│   ├── test_application_repository.py
+│   ├── test_application_service.py
+│   ├── test_bootstrap.py
+│   ├── test_demo.py
+│   ├── test_sqlite_repository.py
+│   └── test_sqlite_service_integration.py
+├── .dockerignore
+├── compose.yaml
+├── Dockerfile
+├── pyproject.toml
+├── README.md
+└── uv.lock
 ```
 
 ## Requirements
 
+For local development:
+
 - Python 3.12 or later
 - uv
+
+For containerized execution:
+
+- Docker Desktop
+- Docker Compose
 
 ## Setup
 
@@ -98,11 +127,69 @@ Install the project and its development dependencies:
 uv sync
 ```
 
-## Run the tests
+## Run the API locally
+
+Start the development server:
 
 ```bash
-uv run pytest -q
+uv run uvicorn application_tracker.main:app --reload
 ```
+
+The application is then available at:
+
+- API: http://127.0.0.1:8000
+- Interactive API documentation: http://127.0.0.1:8000/docs
+- Health check: http://127.0.0.1:8000/health
+
+By default, application data is stored in `application_tracker.db`.
+
+The database location can be changed through an environment variable:
+
+```bash
+APPLICATION_TRACKER_DATABASE_PATH=/path/to/applications.db \
+uv run uvicorn application_tracker.main:app
+```
+
+## Run with Docker Compose
+
+Build and start the API:
+
+```bash
+docker compose up --build --detach
+```
+
+Check the container state:
+
+```bash
+docker compose ps
+```
+
+Verify the health endpoint:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Stop and remove the container:
+
+```bash
+docker compose down
+```
+
+SQLite data is stored in the named `application-data` volume and remains available when the container is removed and recreated.
+
+## API endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/applications` | Create an application |
+| `GET` | `/applications` | List, filter, and paginate applications |
+| `GET` | `/applications/follow-ups` | Find applications requiring follow-up |
+| `GET` | `/applications/{application_id}` | Retrieve one application |
+| `PATCH` | `/applications/{application_id}/status` | Change application status |
+| `PUT` | `/applications/{application_id}/follow-up` | Schedule a follow-up |
+| `DELETE` | `/applications/{application_id}/follow-up` | Clear a follow-up |
+| `GET` | `/health` | Report API health |
 
 ## Run the demo
 
@@ -118,7 +205,7 @@ Needs follow-up as of 2026-08-20T00:00:00+00:00:
 - OpenAI | Backend Engineer | screening
 ```
 
-The demo uses fixed dates so that it produces deterministic output. It currently uses the in-memory repository, while SQLite persistence is verified through repository and service integration tests.
+The demo uses fixed dates so that it produces deterministic output. It uses the in-memory repository, while the production entry point uses SQLite persistence.
 
 ## Key engineering decisions
 
@@ -142,7 +229,7 @@ Follow-up calculations reject timezone-naive datetime values. This prevents ambi
 
 `ApplicationService` depends on an `ApplicationRepository` protocol rather than a concrete storage implementation.
 
-The project currently provides:
+The project provides:
 
 - `InMemoryApplicationRepository` for fast unit tests and demonstrations
 - `SQLiteApplicationRepository` for persistent local storage
@@ -174,25 +261,63 @@ These values are converted back into domain types when an application is restore
 
 ### Correctness before query optimization
 
-Follow-up filtering continues to use the domain model so that terminal-status and timezone rules have a single source of truth.
+Follow-up filtering uses the domain model so that terminal-status and timezone rules have a single source of truth.
 
-The current SQLite query implementation favors correctness and clarity. Bulk hydration and query optimization can be introduced when real performance requirements appear.
+The current SQLite implementation favors correctness and clarity. Bulk hydration and further query optimization can be introduced when real performance requirements appear.
+
+### Dependency composition
+
+Repository construction is kept outside route handlers. The composition root selects SQLite and injects it into the API through the repository contract.
+
+This keeps HTTP delivery, application coordination, domain behavior, and persistence responsibilities separate.
+
+### Containerized runtime
+
+Application code and runtime dependencies are installed into an immutable Docker image.
+
+SQLite data is written to `/data` and persisted independently through a named Docker volume. The API process runs as a dedicated non-root user.
 
 ### Deterministic tests
 
 Time-dependent behavior receives an explicit reference time. Tests do not depend on the computer's current clock, making failures repeatable and easier to debug.
 
-SQLite integration tests use temporary database files and open new repository instances to prove that state is persisted to disk rather than retained only in memory.
+SQLite integration tests use temporary database files and new repository instances to prove that state is persisted to disk rather than retained only in memory.
 
-## Next milestone
+## Quality checks
 
-The next milestone will expose the existing application use cases through a FastAPI REST API.
+Run static analysis:
 
-The API layer will:
+```bash
+uv run ruff check .
+```
 
-- Validate HTTP request data
-- Translate requests into application service calls
-- Return structured JSON responses
-- Map domain and repository exceptions to appropriate HTTP status codes
-- Use SQLite persistence without moving business rules into route handlers
+Run the complete automated test suite:
 
+```bash
+uv run pytest -q
+```
+
+Validate the Compose configuration:
+
+```bash
+docker compose config --quiet
+```
+
+Build the container image:
+
+```bash
+docker build --tag application-lifecycle-tracker:local .
+```
+
+GitHub Actions runs static analysis, automated tests, Compose validation, and the Docker image build for every push and pull request.
+
+## Roadmap
+
+Potential future improvements include:
+
+- Structured application logging
+- Explicit database migrations
+- PostgreSQL support
+- Authentication and user ownership
+- Deployment configuration
+- Metrics and operational monitoring
