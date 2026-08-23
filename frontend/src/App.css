@@ -1,0 +1,149 @@
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 36px 0 64px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  margin-top: 6px;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  letter-spacing: -0.04em;
+}
+
+h2 {
+  max-width: 680px;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.eyebrow {
+  color: #557060;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.api-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border: 1px solid #d8ded9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #59635d;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.api-status__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #d29a30;
+}
+
+.api-status--online .api-status__dot {
+  background: #2b8a55;
+}
+
+.api-status--offline .api-status__dot {
+  background: #c74747;
+}
+
+.intro {
+  padding: clamp(32px, 7vw, 72px);
+  border-radius: 28px;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(152, 201, 167, 0.35),
+      transparent 38%
+    ),
+    #e8efe8;
+}
+
+.intro__description {
+  max-width: 620px;
+  margin-top: 20px;
+  color: #536158;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.summary-card {
+  min-height: 190px;
+  padding: 24px;
+  border: 1px solid #dde2dd;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 35px rgba(32, 50, 39, 0.05);
+}
+
+.summary-card span {
+  color: #617067;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.summary-card strong {
+  display: block;
+  margin: 20px 0 14px;
+  color: #1d3124;
+  font-size: 2.4rem;
+}
+
+.summary-card p {
+  color: #778078;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    width: min(100% - 24px, 1120px);
+    padding-top: 24px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: 30px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .intro {
+    border-radius: 22px;
+  }
+}
