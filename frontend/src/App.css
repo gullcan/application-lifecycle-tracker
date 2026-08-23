@@ -352,3 +352,62 @@ td:first-child span {
     flex-direction: column;
   }
 }
+.status-control {
+  display: grid;
+  gap: 7px;
+  min-width: 230px;
+}
+
+.status-control__inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-control select {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid #ced7d0;
+  border-radius: 10px;
+  outline: none;
+  background: #f8faf8;
+  color: #26342b;
+}
+
+.status-control select:focus {
+  border-color: #4c8961;
+  box-shadow: 0 0 0 3px rgba(76, 137, 97, 0.14);
+}
+
+.status-update-button {
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 10px;
+  background: #315d3f;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.status-update-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.status-control__error {
+  max-width: 250px;
+  color: #a13d3d;
+  line-height: 1.35;
+}
+
+.terminal-status {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.terminal-status small {
+  color: #7b827d;
+}

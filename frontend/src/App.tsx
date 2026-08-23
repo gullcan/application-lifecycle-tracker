@@ -8,10 +8,13 @@ import { getHealth } from './api/health'
 import { ApplicationForm } from './components/ApplicationForm'
 import type { Application } from './types/application'
 import {
-  applicationStatusLabels,
   terminalApplicationStatuses,
 } from './types/application'
 import './App.css'
+
+import {
+  ApplicationStatusControl,
+} from './components/ApplicationStatusControl'
 
 type ApiState = 'checking' | 'online' | 'offline'
 type DataState = 'loading' | 'ready' | 'error'
@@ -76,7 +79,7 @@ function App() {
     }
   }, [])
 
-  function handleApplicationCreated(): void {
+  function refreshDashboard(): void {
     setDataState('loading')
     setDashboardVersion(
       (currentVersion) => currentVersion + 1,
@@ -193,7 +196,7 @@ function App() {
         </section>
 
         <ApplicationForm
-          onCreated={handleApplicationCreated}
+          onCreated={refreshDashboard}
         />
 
         <section className="applications-section">
@@ -255,13 +258,10 @@ function App() {
                           </span>
                         </td>
                         <td>
-                          <span className="status-badge">
-                            {
-                              applicationStatusLabels[
-                                application.status
-                              ]
-                            }
-                          </span>
+                          <ApplicationStatusControl
+                            application={application}
+                            onUpdated={refreshDashboard}
+                          />
                         </td>
                         <td>
                           {application.follow_up_at === null

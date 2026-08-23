@@ -1,5 +1,6 @@
 import type {
   Application,
+  ApplicationStatus,
   CreateApplicationInput,
 } from '../types/application'
 import { apiRequest } from './client'
@@ -35,6 +36,19 @@ export function createApplication(
     {
       method: 'POST',
       body: JSON.stringify(input),
+    },
+  )
+}
+
+export function changeApplicationStatus(
+  applicationId: string,
+  status: ApplicationStatus,
+): Promise<Application> {
+  return apiRequest<Application>(
+    `/applications/${encodeURIComponent(applicationId)}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     },
   )
 }
