@@ -11,6 +11,12 @@ vi.mock('../api/applications', () => ({
   changeApplicationStatus: vi.fn(),
   scheduleApplicationFollowUp: vi.fn(),
   clearApplicationFollowUp: vi.fn(),
+  updateApplication: vi.fn(),
+  archiveApplication: vi.fn(),
+  restoreApplication: vi.fn(),
+  applicationExportUrl: () => (
+    '/api/applications/export.csv'
+  ),
 }))
 
 describe('ApplicationList', () => {

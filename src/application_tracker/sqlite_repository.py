@@ -4,12 +4,14 @@ from pathlib import Path
 from uuid import UUID
 from application_tracker.domain.models import(
     Application,
+    ApplicationSource,
     ApplicationStatus,
     ApplicationStatusChange,
 )
 from application_tracker.repositories import (
     ApplicationNotFoundError,
     DuplicateApplicationError,
+    ApplicationSort,
 )
 from application_tracker.domain.validation import (
     require_timezone_aware,
@@ -54,9 +56,13 @@ class SQLiteApplicationRepository:
                     job_title,
                     status,
                     created_at,
-                    follow_up_at
+                    follow_up_at,
+                    source,
+                    job_url,
+                    notes,
+                    archived_at
                     )
-                    VALUES(?, ?, ?, ?, ?, ?)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(application.id),
@@ -67,6 +73,18 @@ class SQLiteApplicationRepository:
                         (
                             application.follow_up_at.isoformat()
                             if application.follow_up_at is not None
+                            else None
+                        ),
+                        (
+                            application.source.value
+                            if application.source is not None
+                            else None
+                        ),
+                        application.job_url,
+                        application.notes,
+                        (
+                            application.archived_at.isoformat()
+                            if application.archived_at is not None
                             else None
                         ),
                     ),
@@ -117,7 +135,11 @@ class SQLiteApplicationRepository:
                     job_title,
                     status,
                     created_at,
-                    follow_up_at
+                    follow_up_at,
+                    source,
+                    job_url,
+                    notes,
+                    archived_at
                 FROM applications
                 WHERE id = ?
                 """,
@@ -159,6 +181,8 @@ class SQLiteApplicationRepository:
             for row in history_rows
         )
         follow_up_value = application_row["follow_up_at"]
+        source_value = application_row["source"]
+        archived_at_value = application_row["archived_at"]
 
         return Application.restore(
             application_id=UUID(application_row["id"]),
@@ -173,12 +197,27 @@ class SQLiteApplicationRepository:
                 if follow_up_value is not None
                 else None
             ),
+            source=(
+                ApplicationSource(source_value)
+                if source_value is not None
+                else None
+            ),
+            job_url=application_row["job_url"],
+            notes=application_row["notes"],
+            archived_at=(
+                datetime.fromisoformat(archived_at_value)
+                if archived_at_value is not None
+                else None
+            ),
             status_history=status_history,
         )
 
     def list_all(
         self,
         *,
+        search: str | None = None,
+        include_archived: bool = False,
+        sort: ApplicationSort = ApplicationSort.CREATED_ASC,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[Application]:
@@ -190,18 +229,15 @@ class SQLiteApplicationRepository:
         )
 
         try:
-            rows = connection.execute(
-                """
-                SELECT id
-                FROM applications
-                ORDER BY created_at, id
-                LIMIT ? OFFSET ?
-                """,
-                (
-                    effective_limit,
-                    offset,
-                ),
-            ).fetchall()
+            rows = self._query_application_ids(
+                connection,
+                status=None,
+                search=search,
+                include_archived=include_archived,
+                sort=sort,
+                limit=effective_limit,
+                offset=offset,
+            )
         finally:
             connection.close()
 
@@ -214,6 +250,9 @@ class SQLiteApplicationRepository:
         self,
         status: ApplicationStatus,
         *,
+        search: str | None = None,
+        include_archived: bool = False,
+        sort: ApplicationSort = ApplicationSort.CREATED_ASC,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[Application]:
@@ -230,20 +269,15 @@ class SQLiteApplicationRepository:
         )
 
         try:
-            rows = connection.execute(
-                """
-                SELECT id
-                FROM applications
-                WHERE status = ?
-                ORDER BY created_at, id
-                LIMIT ? OFFSET ?
-                """,
-                (
-                    status.value,
-                    effective_limit,
-                    offset,
-                ),
-            ).fetchall()
+            rows = self._query_application_ids(
+                connection,
+                status=status,
+                search=search,
+                include_archived=include_archived,
+                sort=sort,
+                limit=effective_limit,
+                offset=offset,
+            )
         finally:
             connection.close()
 
@@ -251,6 +285,67 @@ class SQLiteApplicationRepository:
             self.get(UUID(row["id"]))
             for row in rows
         ]
+
+    def _query_application_ids(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        status: ApplicationStatus | None,
+        search: str | None,
+        include_archived: bool,
+        sort: ApplicationSort,
+        limit: int,
+        offset: int,
+    ) -> list[sqlite3.Row]:
+        if not isinstance(sort, ApplicationSort):
+            raise TypeError("sort must be an ApplicationSort")
+
+        conditions: list[str] = []
+        parameters: list[object] = []
+
+        if status is not None:
+            conditions.append("status = ?")
+            parameters.append(status.value)
+        if not include_archived:
+            conditions.append("archived_at IS NULL")
+        if search is not None and search.strip():
+            conditions.append(
+                """
+                lower(
+                    company_name || ' ' || job_title || ' ' ||
+                    notes || ' ' || coalesce(source, '')
+                ) LIKE ?
+                """
+            )
+            parameters.append(
+                f"%{search.strip().lower()}%"
+            )
+
+        where_clause = (
+            f"WHERE {' AND '.join(conditions)}"
+            if conditions
+            else ""
+        )
+        order_clause = {
+            ApplicationSort.CREATED_ASC: "created_at ASC, id ASC",
+            ApplicationSort.CREATED_DESC: "created_at DESC, id DESC",
+            ApplicationSort.COMPANY_ASC: (
+                "company_name COLLATE NOCASE ASC, "
+                "created_at ASC, id ASC"
+            ),
+        }[sort]
+        parameters.extend((limit, offset))
+
+        return connection.execute(
+            f"""
+            SELECT id
+            FROM applications
+            {where_clause}
+            ORDER BY {order_clause}
+            LIMIT ? OFFSET ?
+            """,
+            parameters,
+        ).fetchall()
 
     def find_needing_follow_up(
             self,
@@ -278,7 +373,11 @@ class SQLiteApplicationRepository:
                         job_title = ?,
                         status = ?,
                         created_at = ?,
-                        follow_up_at = ?
+                        follow_up_at = ?,
+                        source = ?,
+                        job_url = ?,
+                        notes = ?,
+                        archived_at = ?
                     WHERE id = ?
                     """,
                     (
@@ -289,6 +388,18 @@ class SQLiteApplicationRepository:
                         (
                             application.follow_up_at.isoformat()
                             if application.follow_up_at is not None
+                            else None
+                        ),
+                        (
+                            application.source.value
+                            if application.source is not None
+                            else None
+                        ),
+                        application.job_url,
+                        application.notes,
+                        (
+                            application.archived_at.isoformat()
+                            if application.archived_at is not None
                             else None
                         ),
                         str(application.id),

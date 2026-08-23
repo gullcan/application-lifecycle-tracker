@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 
-import { listApplications } from '../api/applications'
+import {
+  applicationExportUrl,
+  listApplications,
+} from '../api/applications'
 import type {
   Application,
   ApplicationStatus,
+  ApplicationSort,
 } from '../types/application'
 import {
   applicationStatuses,
@@ -12,6 +16,7 @@ import {
 import { ApplicationFollowUpControl } from './ApplicationFollowUpControl'
 import { ApplicationStatusControl } from './ApplicationStatusControl'
 import { ApplicationStatusHistory } from './ApplicationStatusHistory'
+import { ApplicationDetailsControl } from './ApplicationDetailsControl'
 
 interface ApplicationListProps {
   refreshVersion: number
@@ -52,6 +57,11 @@ export function ApplicationList({
   const [statusFilter, setStatusFilter] =
     useState<StatusFilter>('all')
   const [page, setPage] = useState(0)
+  const [search, setSearch] = useState('')
+  const [includeArchived, setIncludeArchived] =
+    useState(false)
+  const [sort, setSort] =
+    useState<ApplicationSort>('created_desc')
   const [hasNextPage, setHasNextPage] =
     useState(false)
 
@@ -65,12 +75,18 @@ export function ApplicationList({
             ? await listApplications({
                 limit: PAGE_SIZE + 1,
                 offset: page * PAGE_SIZE,
+                search,
+                includeArchived,
+                sort,
                 signal: controller.signal,
               })
             : await listApplications({
                 status: statusFilter,
                 limit: PAGE_SIZE + 1,
                 offset: page * PAGE_SIZE,
+                search,
+                includeArchived,
+                sort,
                 signal: controller.signal,
               })
 
@@ -91,7 +107,14 @@ export function ApplicationList({
     return () => {
       controller.abort()
     }
-  }, [page, refreshVersion, statusFilter])
+  }, [
+    includeArchived,
+    page,
+    refreshVersion,
+    search,
+    sort,
+    statusFilter,
+  ])
 
   function handleApplicationUpdated(): void {
     setDataState('loading')
@@ -107,6 +130,20 @@ export function ApplicationList({
         </div>
 
         <div className="application-list-controls">
+          <label className="search-filter">
+            <span>Başvurularda ara</span>
+            <input
+              type="search"
+              value={search}
+              placeholder="Şirket, pozisyon veya not"
+              onChange={(event) => {
+                setDataState('loading')
+                setSearch(event.target.value)
+                setPage(0)
+              }}
+            />
+          </label>
+
           <label className="status-filter">
             <span>Duruma göre filtrele</span>
 
@@ -141,6 +178,51 @@ export function ApplicationList({
               )}
             </select>
           </label>
+
+          <label className="sort-filter">
+            <span>Sıralama</span>
+            <select
+              value={sort}
+              onChange={(event) => {
+                setDataState('loading')
+                setSort(
+                  event.target.value as ApplicationSort,
+                )
+                setPage(0)
+              }}
+            >
+              <option value="created_desc">
+                En yeni
+              </option>
+              <option value="created_asc">
+                En eski
+              </option>
+              <option value="company_asc">
+                Şirket A–Z
+              </option>
+            </select>
+          </label>
+
+          <label className="archive-filter">
+            <input
+              type="checkbox"
+              checked={includeArchived}
+              onChange={(event) => {
+                setDataState('loading')
+                setIncludeArchived(event.target.checked)
+                setPage(0)
+              }}
+            />
+            <span>Arşivlenenleri göster</span>
+          </label>
+
+          <a
+            className="export-link"
+            href={applicationExportUrl()}
+            download
+          >
+            CSV indir
+          </a>
 
           <div
             className="pagination-controls"
@@ -230,7 +312,14 @@ export function ApplicationList({
               </thead>
               <tbody>
                 {applications.map((application) => (
-                  <tr key={application.id}>
+                  <Fragment key={application.id}>
+                  <tr
+                    className={
+                      application.archived_at === null
+                        ? undefined
+                        : 'application-row--archived'
+                    }
+                  >
                     <td>
                       <strong>
                         {application.company_name}
@@ -238,22 +327,41 @@ export function ApplicationList({
                       <span>
                         {application.job_title}
                       </span>
+                      {application.archived_at !== null && (
+                        <span className="archived-badge">
+                          Arşivlendi
+                        </span>
+                      )}
                     </td>
                     <td>
-                      <ApplicationStatusControl
-                        application={application}
-                        onUpdated={
-                          handleApplicationUpdated
-                        }
-                      />
+                      {application.archived_at === null ? (
+                        <ApplicationStatusControl
+                          application={application}
+                          onUpdated={
+                            handleApplicationUpdated
+                          }
+                        />
+                      ) : (
+                        <span className="status-badge">
+                          {
+                            applicationStatusLabels[
+                              application.status
+                            ]
+                          }
+                        </span>
+                      )}
                     </td>
                     <td>
-                      <ApplicationFollowUpControl
-                        application={application}
-                        onUpdated={
-                          handleApplicationUpdated
-                        }
-                      />
+                      {application.archived_at === null ? (
+                        <ApplicationFollowUpControl
+                          application={application}
+                          onUpdated={
+                            handleApplicationUpdated
+                          }
+                        />
+                      ) : (
+                        'Arşivden çıkararak düzenleyebilirsin.'
+                      )}
                     </td>
                     <td>
                       {formatDate(
@@ -268,6 +376,17 @@ export function ApplicationList({
                       />
                     </td>
                   </tr>
+                  <tr className="application-details-row">
+                    <td colSpan={5}>
+                      <ApplicationDetailsControl
+                        application={application}
+                        onUpdated={
+                          handleApplicationUpdated
+                        }
+                      />
+                    </td>
+                  </tr>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

@@ -127,6 +127,29 @@ This document records the decisions that shape Application Lifecycle Tracker and
 - Authentication and per-user ownership
 - PostgreSQL and multi-instance deployment
 - Metrics and distributed tracing
-- Analytics grouped by application source
 
-These features remain deferred until a concrete product requirement justifies their operational and architectural cost.
+These features are intentionally outside the local-first, single-user product scope.
+
+## 15. Prefer recoverable archiving over record deletion
+
+**Decision:** Applications can be archived and restored. The product does not permanently delete application records.
+
+**Problem solved:** Old or mistaken records can leave the active workspace without destroying lifecycle history or personal notes.
+
+**Trade-off:** Queries must explicitly decide whether archived records are included.
+
+## 16. Keep personal metadata in the application aggregate
+
+**Decision:** Source, job URL, and notes are persisted with the application and updated through one domain operation.
+
+**Problem solved:** The information needed for daily job-search work remains portable with the lifecycle record.
+
+**Trade-off:** Notes are intentionally plain text; collaboration and rich-text editing are outside scope.
+
+## 17. Run browser tests against an isolated stack
+
+**Decision:** Playwright uses a separate Compose project, ports, and named volume.
+
+**Problem solved:** Full-stack tests prove the React–NGINX–FastAPI–SQLite path without modifying a developer's personal database.
+
+**Trade-off:** CI downloads a browser and builds containers, increasing execution time.

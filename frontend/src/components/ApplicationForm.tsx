@@ -7,6 +7,9 @@ import { createApplication } from '../api/applications'
 import {
   applicationStatuses,
   applicationStatusLabels,
+  applicationSources,
+  applicationSourceLabels,
+  type ApplicationSource,
   type ApplicationStatus,
 } from '../types/application'
 
@@ -28,6 +31,10 @@ export function ApplicationForm({
   const [status, setStatus] =
     useState<ApplicationStatus>('draft')
   const [followUpAt, setFollowUpAt] = useState('')
+  const [source, setSource] =
+    useState<ApplicationSource | ''>('')
+  const [jobUrl, setJobUrl] = useState('')
+  const [notes, setNotes] = useState('')
   const [submissionState, setSubmissionState] =
     useState<SubmissionState>('idle')
   const [errorMessage, setErrorMessage] = useState('')
@@ -49,12 +56,18 @@ export function ApplicationForm({
           followUpAt === ''
             ? null
             : new Date(followUpAt).toISOString(),
+        source: source === '' ? null : source,
+        job_url: jobUrl.trim() || null,
+        notes: notes.trim(),
       })
 
       setCompanyName('')
       setJobTitle('')
       setStatus('draft')
       setFollowUpAt('')
+      setSource('')
+      setJobUrl('')
+      setNotes('')
       setSubmissionState('success')
       onCreated()
     } catch (error) {
@@ -155,6 +168,62 @@ export function ApplicationForm({
               setFollowUpAt(event.target.value)
             }}
             disabled={isSubmitting}
+          />
+        </label>
+
+        <label className="form-field">
+          <span>Başvuru kaynağı</span>
+          <select
+            value={source}
+            onChange={(event) => {
+              setSource(
+                event.target.value as ApplicationSource | '',
+              )
+            }}
+            disabled={isSubmitting}
+          >
+            <option value="">Belirtilmedi</option>
+            {applicationSources.map(
+              (applicationSource) => (
+                <option
+                  key={applicationSource}
+                  value={applicationSource}
+                >
+                  {
+                    applicationSourceLabels[
+                      applicationSource
+                    ]
+                  }
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+
+        <label className="form-field">
+          <span>İlan bağlantısı</span>
+          <input
+            type="url"
+            value={jobUrl}
+            onChange={(event) => {
+              setJobUrl(event.target.value)
+            }}
+            disabled={isSubmitting}
+            placeholder="https://…"
+          />
+        </label>
+
+        <label className="form-field form-field--wide">
+          <span>Notlar</span>
+          <textarea
+            value={notes}
+            onChange={(event) => {
+              setNotes(event.target.value)
+            }}
+            disabled={isSubmitting}
+            maxLength={5000}
+            rows={3}
+            placeholder="Görüşme notları, iletişim bilgileri veya sonraki adım…"
           />
         </label>
 

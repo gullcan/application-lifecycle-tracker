@@ -48,6 +48,9 @@ describe('ApplicationForm', () => {
       job_title: 'Backend Engineer',
       status: 'applied',
       follow_up_at: null,
+      source: null,
+      job_url: null,
+      notes: '',
     })
     expect(onCreated).toHaveBeenCalledOnce()
     expect(
