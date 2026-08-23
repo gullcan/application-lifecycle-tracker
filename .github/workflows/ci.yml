@@ -34,3 +34,9 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -q
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build container image
+        run: docker build --tag application-lifecycle-tracker:ci .
