@@ -1,6 +1,6 @@
 [project]
 name = "application-tracker"
-version = "0.1.0"
+version = "1.1.0"
 description = "Track job applications, lifecycle transitions, and follow-up schedules."
 readme = "README.md"
 requires-python = ">=3.12"

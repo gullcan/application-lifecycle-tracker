@@ -10,6 +10,10 @@ export function makeApplication(
     status: 'applied',
     created_at: '2026-08-24T08:00:00Z',
     follow_up_at: null,
+    source: null,
+    job_url: null,
+    notes: '',
+    archived_at: null,
     status_history: [],
     ...overrides,
   }

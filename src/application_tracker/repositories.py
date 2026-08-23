@@ -8,6 +8,14 @@ from application_tracker.domain.validation import (
     require_timezone_aware,
 )
 from typing import Protocol
+from enum import Enum
+from collections.abc import Iterable
+
+
+class ApplicationSort(Enum):
+    CREATED_ASC = "created_asc"
+    CREATED_DESC = "created_desc"
+    COMPANY_ASC = "company_asc"
 
 class ApplicationRepository(Protocol):
     def add(self, application: Application) -> None:
@@ -22,6 +30,9 @@ class ApplicationRepository(Protocol):
     def list_all(
         self,
         *,
+        search: str | None = None,
+        include_archived: bool = False,
+        sort: ApplicationSort = ApplicationSort.CREATED_ASC,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[Application]:
@@ -31,6 +42,9 @@ class ApplicationRepository(Protocol):
         self,
         status: ApplicationStatus,
         *,
+        search: str | None = None,
+        include_archived: bool = False,
+        sort: ApplicationSort = ApplicationSort.CREATED_ASC,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[Application]:
@@ -73,15 +87,17 @@ class InMemoryApplicationRepository:
     def list_all(
         self,
         *,
+        search: str | None = None,
+        include_archived: bool = False,
+        sort: ApplicationSort = ApplicationSort.CREATED_ASC,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[Application]:
-        applications = sorted(
+        applications = self._filter_and_sort(
             self._applications.values(),
-            key=lambda application: (
-                application.created_at,
-                str(application.id),
-            ),
+            search=search,
+            include_archived=include_archived,
+            sort=sort,
         )
 
         if limit is None:
@@ -95,6 +111,9 @@ class InMemoryApplicationRepository:
         self,
         status: ApplicationStatus,
         *,
+        search: str | None = None,
+        include_archived: bool = False,
+        sort: ApplicationSort = ApplicationSort.CREATED_ASC,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[Application]:
@@ -103,17 +122,16 @@ class InMemoryApplicationRepository:
                 "status must be an ApplicationStatus"
             )
 
-        applications = sorted(
+        applications = self._filter_and_sort(
             (
                 application
                 for application
                 in self._applications.values()
                 if application.status is status
             ),
-            key=lambda application: (
-                application.created_at,
-                str(application.id),
-            ),
+            search=search,
+            include_archived=include_archived,
+            sort=sort,
         )
 
         if limit is None:
@@ -122,6 +140,65 @@ class InMemoryApplicationRepository:
         return applications[
             offset:offset + limit
         ]
+
+    def _filter_and_sort(
+        self,
+        applications: Iterable[Application],
+        *,
+        search: str | None,
+        include_archived: bool,
+        sort: ApplicationSort,
+    ) -> list[Application]:
+        if not isinstance(sort, ApplicationSort):
+            raise TypeError("sort must be an ApplicationSort")
+
+        normalized_search = (
+            search.strip().casefold()
+            if search is not None
+            else ""
+        )
+        filtered = [
+            application
+            for application in applications
+            if (
+                include_archived
+                or not application.is_archived
+            )
+            and (
+                not normalized_search
+                or normalized_search in " ".join(
+                    (
+                        application.company_name,
+                        application.job_title,
+                        application.notes,
+                        (
+                            application.source.value
+                            if application.source is not None
+                            else ""
+                        ),
+                    )
+                ).casefold()
+            )
+        ]
+
+        if sort is ApplicationSort.COMPANY_ASC:
+            return sorted(
+                filtered,
+                key=lambda application: (
+                    application.company_name.casefold(),
+                    application.created_at,
+                    str(application.id),
+                ),
+            )
+
+        return sorted(
+            filtered,
+            key=lambda application: (
+                application.created_at,
+                str(application.id),
+            ),
+            reverse=sort is ApplicationSort.CREATED_DESC,
+        )
 
     def find_needing_follow_up(
             self,

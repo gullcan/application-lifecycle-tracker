@@ -20,9 +20,9 @@ uvicorn application_tracker.main:app --host 0.0.0.0 --port 8000
 
 The frontend container serves compiled assets on port `8080` and proxies `/api/*` to the API container. The Compose development contract exposes the UI on `127.0.0.1:8080` and direct API debugging on `127.0.0.1:8001`.
 
-## SQLite deployment constraint
+## Local-first SQLite constraint
 
-The current V1 deployment must run as a single application replica. SQLite stores state in one database file and is not a shared database for horizontally scaled containers.
+The application is designed for one local user and one API replica. SQLite stores state in one database file and is not a shared database for horizontally scaled containers.
 
 The `/data` mount must be backed by persistent storage. Deploying the container with an ephemeral filesystem will lose application data when the instance is replaced.
 
@@ -48,6 +48,8 @@ docker compose config --quiet
 docker compose build
 ```
 
+The CI workflow additionally starts a separate Compose project and runs the Playwright full-stack test against it.
+
 ## Post-deployment smoke test
 
 ```bash
@@ -63,6 +65,8 @@ Expected response:
 
 After the health check, create an application and retrieve it again after an instance restart to confirm that the platform volume is mounted correctly.
 
-## Scaling path
+## Backup and restore
 
-Before running multiple API replicas, replace SQLite with a shared database such as PostgreSQL and provide a repository implementation that satisfies the existing `ApplicationRepository` protocol. Authentication and per-user ownership are also required before exposing personal application data as a multi-user public service.
+Use `python -m application_tracker.backup backup` to create a transactionally consistent copy. Stop the API before running `python -m application_tracker.backup restore BACKUP_PATH` so the restored file cannot race with an incoming write.
+
+Public multi-user hosting and horizontal scaling are intentionally outside the product scope.

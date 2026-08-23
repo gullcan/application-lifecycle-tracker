@@ -2,7 +2,7 @@ import sqlite3
 from collections.abc import Callable
 
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 class UnsupportedSchemaVersionError(RuntimeError):
@@ -46,8 +46,28 @@ def _create_initial_schema(
     )
 
 
+def _add_personal_productivity_fields(
+        connection: sqlite3.Connection,
+) -> None:
+    connection.execute(
+        "ALTER TABLE applications ADD COLUMN source TEXT"
+    )
+    connection.execute(
+        "ALTER TABLE applications ADD COLUMN job_url TEXT"
+    )
+    connection.execute(
+        """
+        ALTER TABLE applications
+        ADD COLUMN notes TEXT NOT NULL DEFAULT ''
+        """
+    )
+    connection.execute(
+        "ALTER TABLE applications ADD COLUMN archived_at TEXT"
+    )
+
 MIGRATIONS: dict[int, Migration] = {
     1: _create_initial_schema,
+    2: _add_personal_productivity_fields,
 }
 
 

@@ -4,6 +4,12 @@
 
 A production-aware full-stack application for tracking job applications, lifecycle transitions, status history, and follow-up schedules.
 
+![Application Lifecycle Tracker dashboard](docs/images/dashboard.jpg)
+
+![Application creation and personal tracking fields](docs/images/application-management.jpg)
+
+This is a local-first, single-user application intended for personal job-search management and portfolio demonstration.
+
 ## Problem
 
 Job seekers often manage applications across multiple platforms, emails, referrals, and company portals. As the number of applications grows, it becomes difficult to answer questions such as:
@@ -39,8 +45,12 @@ The project currently provides a persistent REST API and responsive React interf
 - Automated linting, strict type checking, coverage enforcement, Compose validation, and image builds in CI
 - A React and TypeScript dashboard for daily application management
 - Application creation, lifecycle updates, follow-up management, filtering, and pagination in the browser
+- Editable company, position, source, job URL, and personal notes
+- Search, sorting, recoverable archiving, and CSV export
+- Consistent SQLite backup and restore commands
 - Expandable immutable status history
 - Frontend component tests with Vitest and Testing Library
+- Isolated full-stack browser testing with Playwright
 - A non-root NGINX frontend container that proxies API requests inside the Compose network
 
 ## Architecture
@@ -266,6 +276,28 @@ docker compose down
 
 SQLite data is stored in the named `application-data` volume and remains available when the containers are removed and recreated.
 
+## Back up personal data
+
+For a local Python process:
+
+```bash
+uv run python -m application_tracker.backup backup
+```
+
+Restore a selected backup into the configured database:
+
+```bash
+uv run python -m application_tracker.backup restore backups/application_tracker_TIMESTAMP.db
+```
+
+Stop the API before restoring so no request can write to the database during the operation. Inside Docker, create the backup in `/data`, then copy it to the host:
+
+```bash
+docker compose exec api python -m application_tracker.backup backup /data/application_tracker_backup.db
+mkdir -p backups
+docker compose cp api:/data/application_tracker_backup.db ./backups/application_tracker_backup.db
+```
+
 For platform requirements, persistence constraints, and smoke tests, see the [Deployment Contract](docs/deployment.md).
 
 ## API endpoints
@@ -274,8 +306,12 @@ For platform requirements, persistence constraints, and smoke tests, see the [De
 |---|---|---|
 | `POST` | `/applications` | Create an application |
 | `GET` | `/applications` | List, filter, and paginate applications |
+| `GET` | `/applications/export.csv` | Export all applications as CSV |
 | `GET` | `/applications/follow-ups` | Find applications requiring follow-up |
 | `GET` | `/applications/{application_id}` | Retrieve one application |
+| `PATCH` | `/applications/{application_id}` | Edit application details |
+| `PUT` | `/applications/{application_id}/archive` | Archive an application |
+| `DELETE` | `/applications/{application_id}/archive` | Restore an archived application |
 | `PATCH` | `/applications/{application_id}/status` | Change application status |
 | `PUT` | `/applications/{application_id}/follow-up` | Schedule a follow-up |
 | `DELETE` | `/applications/{application_id}/follow-up` | Clear a follow-up |
@@ -417,6 +453,8 @@ npm run test
 npm run build
 ```
 
+The isolated Playwright command and Compose environment are documented in [frontend/README.md](frontend/README.md). CI runs this full-stack workflow automatically.
+
 Validate the Compose configuration:
 
 ```bash
@@ -429,12 +467,10 @@ Build both container images:
 docker compose build
 ```
 
-GitHub Actions runs backend and frontend static analysis, strict type checking, automated tests, production builds, Compose validation, and both Docker image builds for every push and pull request.
+GitHub Actions runs backend and frontend static analysis, strict type checking, automated tests, production builds, Compose validation, both Docker image builds, and an isolated full-stack browser workflow for every push and pull request.
 
-## Roadmap
+## Product scope
 
-Potential future improvements include:
+The project is complete as a local-first, single-user application. Authentication, PostgreSQL, multi-user ownership, and public hosting are intentionally out of scope.
 
-- PostgreSQL support
-- Authentication and user ownership
-- Metrics and operational monitoring
+Possible future local-only enhancements are desktop notifications and calendar export. They are not required for the current product to be useful or portfolio-ready.

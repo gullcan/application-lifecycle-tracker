@@ -23,6 +23,17 @@ npm run build
 
 Tests use Vitest, jsdom, and Testing Library. They query controls by accessible labels and roles so the tests exercise the interface in the same way a user does.
 
+The full-stack Playwright workflow expects an isolated Compose stack on port `18080`:
+
+```bash
+COMPOSE_PROJECT_NAME=application-tracker-e2e \
+APPLICATION_TRACKER_API_PORT=18081 \
+APPLICATION_TRACKER_FRONTEND_PORT=18080 \
+docker compose -f ../compose.yaml up --build --detach --wait
+
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:18080 npm run test:e2e
+```
+
 ## Production image
 
 ```bash
