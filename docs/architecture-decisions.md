@@ -92,11 +92,35 @@ This document records the decisions that shape Application Lifecycle Tracker and
 
 ## 11. Enforce quality before merge
 
-**Decision:** CI runs Ruff, strict mypy, tests with a 90% branch-coverage floor, Compose validation, and a Docker build.
+**Decision:** CI runs backend and frontend linting, strict Python type checking, backend coverage enforcement, frontend component tests, production builds, Compose validation, and container builds.
 
 **Problem solved:** Pull requests cannot rely only on local success or manual review.
 
 **Trade-off:** CI takes longer, but failures are detected before reaching `main`.
+
+## 12. Keep the frontend as an explicit API client
+
+**Decision:** React and TypeScript consume the existing HTTP contract instead of importing or duplicating Python application code.
+
+**Problem solved:** Browser delivery remains independently testable while the domain and service layers stay framework-independent.
+
+**Trade-off:** Request and response types exist in both Pydantic and TypeScript. Contract generation is deferred until schema drift becomes a demonstrated maintenance problem.
+
+## 13. Keep lifecycle authority in the backend
+
+**Decision:** The frontend presents lifecycle actions but does not duplicate the complete allowed-transition matrix.
+
+**Problem solved:** Invalid transitions remain impossible for every client, not only the React interface.
+
+**Trade-off:** A user can select a transition that the API rejects with `409 Conflict`. A future endpoint may expose allowed actions when richer UX justifies the additional contract.
+
+## 14. Serve the frontend through a non-root gateway
+
+**Decision:** A dedicated unprivileged NGINX container serves immutable frontend assets and proxies `/api/*` to FastAPI over the Compose network.
+
+**Problem solved:** Development and production remain same-origin from the browser's perspective without opening a permissive CORS policy.
+
+**Trade-off:** Deployment contains two processes and images, but each retains a focused responsibility and can be built independently.
 
 ## Deferred V2 scope
 
@@ -104,6 +128,5 @@ This document records the decisions that shape Application Lifecycle Tracker and
 - PostgreSQL and multi-instance deployment
 - Metrics and distributed tracing
 - Analytics grouped by application source
-- A separate frontend client
 
 These features remain deferred until a concrete product requirement justifies their operational and architectural cost.

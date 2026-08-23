@@ -1,12 +1,13 @@
 # Deployment Contract
 
-Application Lifecycle Tracker is packaged as an OCI-compatible container. A deployment platform only needs to satisfy the runtime contract below.
+Application Lifecycle Tracker is packaged as two OCI-compatible containers: a FastAPI service and a React static frontend served by unprivileged NGINX.
 
 ## Runtime requirements
 
-- Run the image as its built-in non-root user (`uid=10001`).
-- Expose container port `8000`.
-- Route health checks to `GET /health`.
+- Run both images as their built-in non-root users.
+- Keep API port `8000` reachable from the frontend container.
+- Expose frontend container port `8080` to users.
+- Route API health checks to `GET /health` and frontend health checks to `GET /healthz`.
 - Mount persistent writable storage at `/data`.
 - Set `APPLICATION_TRACKER_DATABASE_PATH=/data/application_tracker.db`.
 - Set `APPLICATION_TRACKER_LOG_LEVEL` to one of `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`.
@@ -16,6 +17,8 @@ The image starts the API with:
 ```text
 uvicorn application_tracker.main:app --host 0.0.0.0 --port 8000
 ```
+
+The frontend container serves compiled assets on port `8080` and proxies `/api/*` to the API container. The Compose development contract exposes the UI on `127.0.0.1:8080` and direct API debugging on `127.0.0.1:8001`.
 
 ## SQLite deployment constraint
 
@@ -35,14 +38,21 @@ uv run pytest \
   --cov=application_tracker \
   --cov-report=term-missing \
   -q
+cd frontend
+npm ci
+npm run lint
+npm run test
+npm run build
+cd ..
 docker compose config --quiet
-docker build --tag application-lifecycle-tracker:release .
+docker compose build
 ```
 
 ## Post-deployment smoke test
 
 ```bash
-curl --fail https://your-service.example/health
+curl --fail https://your-service.example/healthz
+curl --fail https://your-service.example/api/health
 ```
 
 Expected response:

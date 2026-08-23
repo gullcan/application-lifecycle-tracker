@@ -4,13 +4,34 @@ services:
       context: .
     image: application-lifecycle-tracker:local
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8001:8000"
     environment:
       APPLICATION_TRACKER_DATABASE_PATH: /data/application_tracker.db
     volumes:
       - application-data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+    image: application-lifecycle-tracker-frontend:local
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--output-document=-", "http://127.0.0.1:8080/healthz"]
       interval: 10s
       timeout: 3s
       retries: 3

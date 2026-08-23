@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/gullcan/application-lifecycle-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/gullcan/application-lifecycle-tracker/actions/workflows/ci.yml)
 
-A production-aware Python backend API for tracking job applications, lifecycle transitions, status history, and follow-up schedules.
+A production-aware full-stack application for tracking job applications, lifecycle transitions, status history, and follow-up schedules.
 
 ## Problem
 
@@ -18,7 +18,7 @@ Application Lifecycle Tracker models this workflow as explicit domain rules inst
 
 ## Current capabilities
 
-The project currently provides a persistent REST API with:
+The project currently provides a persistent REST API and responsive React interface with:
 
 - Job application creation and retrieval
 - Explicit lifecycle transition rules with immutable audit history
@@ -37,11 +37,22 @@ The project currently provides a persistent REST API with:
 - Container health checks
 - Environment-based runtime configuration and structured JSON logging
 - Automated linting, strict type checking, coverage enforcement, Compose validation, and image builds in CI
+- A React and TypeScript dashboard for daily application management
+- Application creation, lifecycle updates, follow-up management, filtering, and pagination in the browser
+- Expandable immutable status history
+- Frontend component tests with Vitest and Testing Library
+- A non-root NGINX frontend container that proxies API requests inside the Compose network
 
 ## Architecture
 
 ```text
-HTTP client
+Browser
+    |
+    v
+React + TypeScript
+    |
+    v
+NGINX / Vite development proxy
     |
     v
 FastAPI routes and schemas
@@ -84,6 +95,18 @@ Detailed trade-offs are recorded in [Architecture Decisions](docs/architecture-d
 ├── docs/
 │   ├── architecture-decisions.md
 │   └── deployment.md
+├── frontend/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── test/
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── package.json
+│   └── vite.config.ts
 ├── src/
 │   └── application_tracker/
 │       ├── __init__.py
@@ -127,6 +150,8 @@ For local development:
 
 - Python 3.12 or later
 - uv
+- Node.js 24
+- npm
 
 For containerized execution:
 
@@ -139,6 +164,13 @@ Install the project and its development dependencies:
 
 ```bash
 uv sync
+```
+
+Install the locked frontend dependencies:
+
+```bash
+cd frontend
+npm ci
 ```
 
 ## Run the API locally
@@ -173,6 +205,17 @@ uv run uvicorn application_tracker.main:app
 
 Supported log levels are `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL`.
 
+## Run the frontend locally
+
+Keep the API running on port `8000`, then start the Vite development server in a second terminal:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open http://127.0.0.1:5173. Vite proxies `/api/*` requests to the local FastAPI process, so development does not require a permissive CORS policy.
+
 ## Lifecycle transitions
 
 | Current status | Allowed next statuses |
@@ -188,7 +231,7 @@ Supported log levels are `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL`.
 
 ## Run with Docker Compose
 
-Build and start the API:
+Build and start the complete application:
 
 ```bash
 docker compose up --build --detach
@@ -200,11 +243,20 @@ Check the container state:
 docker compose ps
 ```
 
-Verify the health endpoint:
+Open the application:
+
+```text
+http://127.0.0.1:8080
+```
+
+Verify the frontend gateway and proxied API:
 
 ```bash
-curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8080/api/health
 ```
+
+Direct local API access for debugging is available at http://127.0.0.1:8001.
 
 Stop and remove the container:
 
@@ -212,7 +264,7 @@ Stop and remove the container:
 docker compose down
 ```
 
-SQLite data is stored in the named `application-data` volume and remains available when the container is removed and recreated.
+SQLite data is stored in the named `application-data` volume and remains available when the containers are removed and recreated.
 
 For platform requirements, persistence constraints, and smoke tests, see the [Deployment Contract](docs/deployment.md).
 
@@ -317,9 +369,9 @@ This keeps HTTP delivery, application coordination, domain behavior, and persist
 
 ### Containerized runtime
 
-Application code and runtime dependencies are installed into an immutable Docker image.
+The API and frontend are installed into separate immutable Docker images.
 
-SQLite data is written to `/data` and persisted independently through a named Docker volume. The API process runs as a dedicated non-root user.
+SQLite data is written to `/data` and persisted independently through a named Docker volume. The API and NGINX processes both run as dedicated non-root users. NGINX serves the compiled React assets and proxies `/api/*` requests over the private Compose network.
 
 ### Runtime configuration and observability
 
@@ -356,19 +408,28 @@ uv run pytest \
 
 Coverage below 90% fails the quality check.
 
+Run frontend static analysis, component tests, and the production build:
+
+```bash
+cd frontend
+npm run lint
+npm run test
+npm run build
+```
+
 Validate the Compose configuration:
 
 ```bash
 docker compose config --quiet
 ```
 
-Build the container image:
+Build both container images:
 
 ```bash
-docker build --tag application-lifecycle-tracker:local .
+docker compose build
 ```
 
-GitHub Actions runs static analysis, strict type checking, coverage-enforced tests, Compose validation, and the Docker image build for every push and pull request.
+GitHub Actions runs backend and frontend static analysis, strict type checking, automated tests, production builds, Compose validation, and both Docker image builds for every push and pull request.
 
 ## Roadmap
 
@@ -376,5 +437,4 @@ Potential future improvements include:
 
 - PostgreSQL support
 - Authentication and user ownership
-- Deployment configuration
 - Metrics and operational monitoring
