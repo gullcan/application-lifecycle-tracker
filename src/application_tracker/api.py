@@ -1,7 +1,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
+
+from fastapi.responses import JSONResponse
 
 from application_tracker.domain.models import (
     Application,
@@ -89,6 +91,20 @@ def create_app(
     )
     service = ApplicationService(repository)
 
+    @app.exception_handler(
+        ApplicationNotFoundError
+    )
+    async def application_not_found_handler(
+        _request: Request,
+        error: ApplicationNotFoundError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "detail": str(error),
+            },
+        )
+
     @app.post(
         "/applications",
         response_model=ApplicationResponse,
@@ -147,15 +163,9 @@ def create_app(
     def get_applications(
         application_id: UUID,
     ) -> ApplicationResponse:
-        try: 
-            application = service.get_application(
-                application_id
-            )
-        except ApplicationNotFoundError as error:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(error),
-            ) from error
+        application = service.get_application(
+            application_id
+        )
 
         return _to_response(application)
 
@@ -172,11 +182,6 @@ def create_app(
                 application_id=application_id,
                 new_status=request.status,
             )
-        except ApplicationNotFoundError as error:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(error),
-            ) from error
         except ValueError as error:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -220,19 +225,13 @@ def create_app(
         response_model=ApplicationResponse,
     )
     def clear_application_follow_up(
-            application_id: UUID,
+        application_id: UUID,
     ) -> ApplicationResponse:
-        try:
-            application = (
-                service.clear_application_follow_up(
-                    application_id=application_id,
-                )
+        application = (
+            service.clear_application_follow_up(
+                application_id=application_id,
             )
-        except ApplicationNotFoundError as error:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(error),
-            ) from error
+        )
 
         return _to_response(application)
 
